@@ -5,8 +5,24 @@ const sedes = ['Grupo San Simon Maracaibo', 'Agropecuaria San Simon La Gloria', 
   'Inversiones Lacteas San Simon', 'Inversiones El Palmeral Planta', 'Inversiones El Palmeral Casigua',
   'Grupo San Simon Caracas', 'Frigorifico Industrial Sur del Lago', 'Grupo Sansimon Especial',
   'Asasica Inepal Casigua', 'Asasica Hacienda la Gloria'];
-const departments = ['TRIBUTOS', 'TRANSPORTE', 'TRADE_MARKETING', 'TESORERIA', 'TECNOLOGIA_DE_INFORMACION',
-  'TALENTO_HUMANO', 'SOPORTE_A_USUARIO', 'SERVICIOS_MEDICOS'];
+const departments = [
+  'LLENAJE Y DESHIDRATADOS',
+  'FABRICACION Y ENVASADO DE UHT',
+  'GERENCIA DE ASEGURAMIENTO DE LA CALIDAD',
+  'PLANIFICACION Y LOGISTICA MP',
+  'GERENCIA DE SEGURIDAD',
+  'GERENCIA DE TRANSPORTE',
+  'GERENCIA DE TALENTO HUMANO',
+  'GERENCIA DE ADMINISTRACION Y FINANZAS',
+  'SERVICIOS GENERALES',
+  'MANTENIMIENTO INDUSTRIAL',
+  'GERENCIAS DE PLANTA',
+  'GERENCIA DE SERVICIOS AGROPECUARIOS',
+  'GERENCIA DE MANTENIMIENTO',
+  'SEGURIDAD SALUD LABORAL Y AMBIENTE',
+  'GERENCIA DE TECNOLOGIA DE INFORMACION',
+  'GERENCIA DE OPERACIONES COMERCIALES',
+];
 const user = process.env.DEV_USER_CODE || 'usuario.prueba';
 
 for (const [i, name] of sedes.entries()) {

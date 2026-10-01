@@ -10,25 +10,30 @@ export default function EjecutarSorteo() {
   const [winners, setWinners] = useState([])
   const [pool, setPool] = useState([])
   const [spinning, setSpinning] = useState(false)
-  const [remaining, setRemaining] = useState(0)
+  const [timeLeft, setTimeLeft] = useState(0)
   const [shown, setShown] = useState('')
   const [latest, setLatest] = useState(null)
   const [error, setError] = useState('')
-  const [finished, setFinished] = useState(false)
+  const [remaining, setRemainingCount] = useState(null)
   const timer = useRef(null)
 
   const selectSorteo = (id) => {
     setWinners([])
     setPool([])
     setLatest(null)
-    setFinished(false)
+    setRemainingCount(null)
     setError('')
     setIdSorteos(id)
   }
 
   useEffect(() => {
     if (!idSorteos) return
-    api.ganadores(idSorteos).then(setWinners).catch((e) => setError(e.message))
+    api.ganadores(idSorteos)
+      .then((d) => {
+        setWinners(d.winners)
+        setRemainingCount(d.remaining)
+      })
+      .catch((e) => setError(e.message))
     api.asistencia(idSorteos)
       .then((d) => setPool(d.rows.filter((r) => r.attended).map((r) => r.fullName)))
       .catch(() => {})
@@ -42,7 +47,7 @@ export default function EjecutarSorteo() {
     setSpinning(true)
     const start = Date.now()
     timer.current = setInterval(() => {
-      setRemaining(Math.max(0, SPIN_MS - (Date.now() - start)))
+      setTimeLeft(Math.max(0, SPIN_MS - (Date.now() - start)))
       if (pool.length) setShown(pool[Math.floor(Math.random() * pool.length)])
     }, 90)
     try {
@@ -50,8 +55,9 @@ export default function EjecutarSorteo() {
       const [winner] = await Promise.all([api.ejecutar(idSorteos), sleep(SPIN_MS)])
       setLatest(winner)
       setWinners((w) => [...w, winner])
+      setRemainingCount(winner.remaining)
     } catch (e) {
-      if (e.body?.finished) setFinished(true)
+      if (e.body?.finished) setRemainingCount(0)
       setError(e.message)
     } finally {
       clearInterval(timer.current)
@@ -59,14 +65,16 @@ export default function EjecutarSorteo() {
     }
   }
 
-  const clock = (remaining / 1000).toFixed(1)
+  const clock = (timeLeft / 1000).toFixed(1)
+  const finished = remaining === 0
+  const nextOrder = winners.length + 1
 
   return (
     <div className="card">
       <h2>Ejecutar sorteo</h2>
       <SorteoSelect value={idSorteos} onChange={selectSorteo}>
-        <button className="success star" onClick={run} disabled={!idSorteos || spinning || finished} title="Sacar un ganador">
-          ★ Sortear
+        <button className="success star" onClick={run} disabled={!idSorteos || remaining === null || spinning || finished} title="Sacar un ganador">
+          ★ Sortear ganador #{nextOrder}
         </button>
       </SorteoSelect>
 
@@ -83,7 +91,14 @@ export default function EjecutarSorteo() {
           <div className="winner-meta">{latest.jobTitle} · {latest.department}</div>
         </div>
       )}
-      {error && <p className="msg error">{error}</p>}
+      {finished && !spinning && (
+        <p className="msg done">
+          {winners.length > 0
+            ? `Sorteo finalizado: ya salieron los ${winners.length} ganadores.`
+            : 'No hay participantes elegibles: marque la asistencia y cargue los cupos por gerencia.'}
+        </p>
+      )}
+      {error && !finished && <p className="msg error">{error}</p>}
 
       {idSorteos && (
         <>

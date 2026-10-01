@@ -5,7 +5,7 @@ import { asyncHandler, HttpError, parseId } from '../utils/http.js';
 import { getAccessibleSorteo } from '../services/sorteoAccess.js';
 import { importParticipants } from '../services/importParticipants.js';
 import { importQuotas } from '../services/importQuotas.js';
-import { drawNextWinner, listWinners } from '../services/draw.js';
+import { drawNextWinner, getDrawStatus } from '../services/draw.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -164,7 +164,7 @@ router.post('/:id/ejecutar', asyncHandler(async (req, res) => {
 
 router.get('/:id/ganadores', asyncHandler(async (req, res) => {
   const sorteo = await getAccessibleSorteo(parseId(req.params.id), req.user);
-  res.json(await listWinners(sorteo.idSorteos));
+  res.json(await getDrawStatus(sorteo.idSorteos, sorteo.groupId));
 }));
 
 export default router;

@@ -8,8 +8,9 @@ export function normalizeKey(value) {
     .trim();
 }
 
+// Deja solo letras y números: "28.624.356-1" -> "286243561" (no se permiten guiones en Employee).
 export function normalizeCedula(value) {
-  return String(value ?? '').replace(/[\s.]/g, '').trim();
+  return String(value ?? '').replace(/[^0-9A-Za-z]/g, '');
 }
 
 export function normalizeText(value) {

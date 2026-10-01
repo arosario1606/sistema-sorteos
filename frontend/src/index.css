@@ -32,6 +32,7 @@ fieldset { border: 1px solid var(--border); border-radius: 8px; margin: 0 0 12px
 .toolbar select { min-width: 280px; } .toolbar input[type='search'] { flex: 1; min-width: 240px; }
 .upload { border-top: 1px solid var(--border); padding-top: 8px; }
 .hint { color: var(--muted); font-size: .85rem; margin: 2px 0 8px; }
+.msg.done { font-weight: 700; color: var(--success); margin: 8px 0; }
 .msg.error { color: var(--danger); font-weight: 600; margin: 8px 0; }
 .result { background: var(--row); border-radius: 8px; padding: 8px 12px; } .result p { margin: 4px 0; } .result ul { max-height: 200px; overflow: auto; margin: 4px 0; }
 .stats { display: flex; gap: 24px; flex-wrap: wrap; margin: 12px 0; }

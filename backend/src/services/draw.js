@@ -4,10 +4,39 @@ import { HttpError } from '../utils/http.js';
 
 // Regla de elegibilidad (aislada para poder ajustarla fácilmente):
 // participa = SI, asistió, no ha ganado y su gerencia aún tiene cupo en el grupo.
+// Una gerencia sin cupo cargado tiene cupo 0 y no puede ganar.
 export function pickEligible(candidates, quotaByDept, winnersByDept) {
   return candidates.filter(
     (p) => (winnersByDept.get(p.idDepartment) ?? 0) < (quotaByDept.get(p.idDepartment) ?? 0),
   );
+}
+
+// Estado actual del sorteo: ganadores existentes y participantes aún elegibles.
+async function loadState(db, idSorteos, groupId) {
+  const quotas = await db.departmentQuota.findMany({ where: { groupId } });
+  const quotaByDept = new Map(quotas.map((q) => [q.idDepartment, q.allowedQuantity]));
+
+  const winners = await db.winner.findMany({
+    where: { participant: { idSorteos } },
+    include: { participant: { select: { idDepartment: true } } },
+  });
+  const winnersByDept = new Map();
+  for (const w of winners) {
+    const d = w.participant.idDepartment;
+    winnersByDept.set(d, (winnersByDept.get(d) ?? 0) + 1);
+  }
+
+  const candidates = await db.participant.findMany({
+    where: { idSorteos, participate: 1, attended: 1, winner: null },
+  });
+  return {
+    hasQuotas: quotas.length > 0,
+    winnersCount: winners.length,
+    candidates,
+    quotaByDept,
+    winnersByDept,
+    eligible: pickEligible(candidates, quotaByDept, winnersByDept),
+  };
 }
 
 export async function drawNextWinner(idSorteos) {
@@ -16,32 +45,24 @@ export async function drawNextWinner(idSorteos) {
     const [sorteo] = await tx.$queryRaw`SELECT id_sorteos, group_id FROM Sorteos WHERE id_sorteos = ${idSorteos} FOR UPDATE`;
     if (!sorteo) throw new HttpError(404, 'Sorteo no encontrado');
 
-    const quotas = await tx.departmentQuota.findMany({ where: { groupId: sorteo.group_id } });
-    if (quotas.length === 0) {
-      throw new HttpError(409, 'El sorteo no tiene cupos por gerencia cargados');
-    }
-    const quotaByDept = new Map(quotas.map((q) => [q.idDepartment, q.allowedQuantity]));
+    const state = await loadState(tx, idSorteos, sorteo.group_id);
+    if (!state.hasQuotas) throw new HttpError(409, 'El sorteo no tiene cupos por gerencia cargados');
+    if (state.eligible.length === 0) return null;
 
-    const winners = await tx.winner.findMany({
-      where: { participant: { idSorteos } },
-      include: { participant: { select: { idDepartment: true } } },
-    });
-    const winnersByDept = new Map();
-    for (const w of winners) {
-      const d = w.participant.idDepartment;
-      winnersByDept.set(d, (winnersByDept.get(d) ?? 0) + 1);
-    }
-
-    const candidates = await tx.participant.findMany({
-      where: { idSorteos, participate: 1, attended: 1, winner: null },
-    });
-    const eligible = pickEligible(candidates, quotaByDept, winnersByDept);
-    if (eligible.length === 0) return null;
-
-    const chosen = eligible[randomInt(eligible.length)];
+    const chosen = state.eligible[randomInt(state.eligible.length)];
     const winner = await tx.winner.create({
-      data: { idParticipant: chosen.idParticipant, winningOrder: winners.length + 1 },
+      data: { idParticipant: chosen.idParticipant, winningOrder: state.winnersCount + 1 },
     });
+
+    // Cuántos quedan elegibles después de este ganador (para saber si el sorteo terminó).
+    const winnersByDept = new Map(state.winnersByDept);
+    winnersByDept.set(chosen.idDepartment, (winnersByDept.get(chosen.idDepartment) ?? 0) + 1);
+    const remaining = pickEligible(
+      state.candidates.filter((c) => c.idParticipant !== chosen.idParticipant),
+      state.quotaByDept,
+      winnersByDept,
+    ).length;
+
     const employee = await tx.employee.findUnique({ where: { cedula: chosen.cedula } });
     const department = await tx.department.findUnique({ where: { idDepartment: chosen.idDepartment } });
 
@@ -53,11 +74,13 @@ export async function drawNextWinner(idSorteos) {
       lastName: employee?.lastName ?? '',
       jobTitle: chosen.jobTitle,
       department: department?.name ?? '',
+      remaining,
     };
   });
 }
 
-export async function listWinners(idSorteos) {
+// Ganadores en orden y cuántos participantes siguen elegibles.
+export async function getDrawStatus(idSorteos, groupId) {
   const winners = await prisma.winner.findMany({
     where: { participant: { idSorteos } },
     orderBy: { winningOrder: 'asc' },
@@ -67,16 +90,21 @@ export async function listWinners(idSorteos) {
     where: { cedula: { in: winners.map((w) => w.participant.cedula) } },
   });
   const byCedula = new Map(employees.map((e) => [e.cedula, e]));
+  const state = await loadState(prisma, idSorteos, groupId);
 
-  return winners.map((w) => {
-    const e = byCedula.get(w.participant.cedula);
-    return {
-      winningOrder: w.winningOrder,
-      cedula: w.participant.cedula,
-      names: e?.names ?? '',
-      lastName: e?.lastName ?? '',
-      jobTitle: w.participant.jobTitle,
-      department: w.participant.department.name,
-    };
-  });
+  return {
+    remaining: state.eligible.length,
+    hasQuotas: state.hasQuotas,
+    winners: winners.map((w) => {
+      const e = byCedula.get(w.participant.cedula);
+      return {
+        winningOrder: w.winningOrder,
+        cedula: w.participant.cedula,
+        names: e?.names ?? '',
+        lastName: e?.lastName ?? '',
+        jobTitle: w.participant.jobTitle,
+        department: w.participant.department.name,
+      };
+    }),
+  };
 }
