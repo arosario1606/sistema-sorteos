@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon src/app.js",
+    "start": "node src/app.js",
+    "seed:dev": "node prisma/seed.dev.js",
     "prisma:generate": "npx --package=prisma prisma generate --schema=./prisma/schema.prisma",
       "postinstall": "prisma generate"
   },
