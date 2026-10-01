@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. Employee
+model Employee {
+  employeeId Int       @id @default(autoincrement()) @map("employee_id")
+  cedula     String    @db.VarChar(50)
+  names      String    @db.VarChar(100)
+  lastName   String    @map("last_name") @db.VarChar(100)
+  bornDate   DateTime? @map("bornDate") @db.Date
+  email      String?   @db.VarChar(150)
+  isActive   Int       @default(1) @map("isActive")
+  createdAt  DateTime  @default(now()) @map("createdAt")
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updatedAt")
+
+  @@map("Employee")
+}
+
+// 2. Sede
+model Sede {
+  idSede Int    @id @map("id_sede")
+  name   String @db.VarChar(150)
+
+  userPermissions    UserBranchPermission[]
+  branchGroupDetails BranchGroupDetail[]
+
+  @@map("Sede")
+}
+
+// 3. User_branch_permission
+model UserBranchPermission {
+  userCode  String   @map("user_code") @db.VarChar(50)
+  idSede    Int      @map("id_sede")
+  createdBy String   @map("created_by") @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  sede Sede @relation(fields: [idSede], references: [idSede], onDelete: Cascade)
+
+  @@id([userCode, idSede])
+  @@map("User_branch_permission")
+}
+
+// 4. Branch_group
+model BranchGroup {
+  groupId   Int      @id @default(autoincrement()) @map("group_id")
+  name      String   @db.VarChar(150)
+  createdBy String   @map("created_by") @db.VarChar(100)
+  updatedBy String?  @map("updated_by") @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  details BranchGroupDetail[]
+  quotas  DepartmentQuota[]
+  sorteos Sorteos[]
+
+  @@map("Branch_group")
+}
+
+// 5. Branch_group_detail
+model BranchGroupDetail {
+  groupId   Int      @map("group_id")
+  idSede    Int      @map("id_sede")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  branchGroup BranchGroup @relation(fields: [groupId], references: [groupId], onDelete: Cascade)
+  sede        Sede        @relation(fields: [idSede], references: [idSede], onDelete: Cascade)
+
+  @@id([groupId, idSede])
+  @@map("Branch_group_detail")
+}
+
+// 6. Department
+model Department {
+  idDepartment Int      @id @default(autoincrement()) @map("id_department")
+  name         String   @db.VarChar(100)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  quotas       DepartmentQuota[]
+  participants Participant[]
+
+  @@map("Department")
+}
+
+// 7. Department_quota
+model DepartmentQuota {
+  groupId         Int      @map("group_id")
+  idDepartment    Int      @map("id_department")
+  allowedQuantity Int      @map("allowed_quantity")
+  createdBy       String   @map("created_by") @db.VarChar(100)
+  updatedBy       String?  @map("updated_by") @db.VarChar(100)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+
+  branchGroup BranchGroup @relation(fields: [groupId], references: [groupId], onDelete: Cascade)
+  department  Department  @relation(fields: [idDepartment], references: [idDepartment], onDelete: Cascade)
+
+  @@id([groupId, idDepartment])
+  @@map("Department_quota")
+}
+
+// 8. Sorteos
+model Sorteos {
+  idSorteos  Int      @id @default(autoincrement()) @map("id_sorteos")
+  name       String   @db.VarChar(150)
+  sorteoDate DateTime @map("sorteo_date") @db.Date
+  groupId    Int      @map("group_id")
+  createdBy  String   @map("created_by") @db.VarChar(100)
+  updatedBy  String?  @map("updated_by") @db.VarChar(100)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  branchGroup  BranchGroup   @relation(fields: [groupId], references: [groupId])
+  participants Participant[]
+
+  @@map("Sorteos")
+}
+
+// 9. Participant
+model Participant {
+  idParticipant Int      @id @default(autoincrement()) @map("id_participant")
+  idSorteos     Int      @map("id_sorteos")
+  cedula        String   @db.VarChar(50)
+  idDepartment  Int      @map("id_department")
+  jobTitle      String   @map("job_title") @db.VarChar(100)
+  participate   Int      @default(1)
+  attended      Int      @default(0)
+  createdBy     String   @map("created_by") @db.VarChar(100)
+  updatedBy     String?  @map("updated_by") @db.VarChar(100)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  sorteos    Sorteos    @relation(fields: [idSorteos], references: [idSorteos], onDelete: Cascade)
+  department Department @relation(fields: [idDepartment], references: [idDepartment])
+  winner     Winner?
+
+  @@map("Participant")
+}
+
+// 10. Winner
+model Winner {
+  idParticipant Int      @id @map("id_participant")
+  winningOrder  Int      @map("winning_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  participant Participant @relation(fields: [idParticipant], references: [idParticipant], onDelete: Cascade)
+
+  @@map("Winner")
+}
