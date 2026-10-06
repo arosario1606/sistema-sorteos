@@ -6,6 +6,13 @@ export default function UploadResult({ result, summary }) {
   return (
     <div className="mt-2 rounded-md bg-sky-50 p-3">
       <p className={ui.success}>{summary(result)}</p>
+      {result.departmentsCreated?.length > 0 && (
+        <div role="alert" className="my-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+          <b>{result.departmentsCreated.length} gerencia(s) nueva(s) creada(s):</b> {result.departmentsCreated.join(', ')}.
+          Si alguna es un error de escritura, avise para corregirla: una gerencia nueva no tiene cupo, así que sus
+          participantes no podrán ganar.
+        </div>
+      )}
       {result.errors.length > 0 && (
         <details open>
           <summary className="cursor-pointer text-sm font-medium text-red-600">

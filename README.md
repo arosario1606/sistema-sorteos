@@ -19,9 +19,10 @@ Una gerencia sin cupo cargado no tiene ganadores.
 
 - Separador `;` o `,`; UTF-8 o Latin-1; con o sin encabezado.
 - **Participantes** (sin encabezado): `cedula;apellidos;nombres;cargo;gerencia;participa`. `participa` = `SI`/`NO`.
-  La cédula se limpia a letras y números (`28624356-1` → `286243561`). La gerencia debe existir en `Department`
-  (no distingue mayúsculas ni tildes). Las cédulas que no estén en `Employee` se registran como empleados nuevos.
-- **Cupos**: `gerencia;cantidad`.
+  La cédula se limpia a letras y números (`28624356-1` → `286243561`). La gerencia se busca sin distinguir
+  mayúsculas, tildes ni espacios y, **si no existe, se crea** con el nombre del CSV (el resultado de la carga lista las nuevas para
+  detectar errores de escritura). Las cédulas que no estén en `Employee` se registran como empleados nuevos.
+- **Cupos**: `gerencia;cantidad` (las gerencias nuevas también se crean aquí).
 
 Ejemplos con datos ficticios en `docs/ejemplos/`.
 
@@ -32,7 +33,7 @@ Ejemplos con datos ficticios en `docs/ejemplos/`.
 | `Sede` | Copia de `intranet_api_auth_manager."Locations"` (`npm run sync:sedes`). `active = false` oculta una sede al crear sorteos nuevos sin perder el historial. |
 | `Employee` | Copia de `intranet_employees_db."Employee"` (`npm run sync:employees`) + cédulas nuevas que lleguen en los CSV. Se actualiza a mano cuando haga falta. |
 | `User_branch_permission` | Propia: `user_id` (= `Users.id` de la intranet), `user_email` (informativo) e `id_sede`. |
-| `Department` | Propia (gerencias). |
+| `Department` | Propia. Se llena sola con las gerencias que vengan en los CSV; no se siembra ni se copia de `Area` (sus nombres no coinciden con los del CSV de RRHH). |
 
 ## Puesta en marcha local
 
@@ -46,7 +47,7 @@ npm install
 npm run migrate:deploy        # crea el esquema "sorteos" y sus tablas (versionadas en prisma/migrations)
 npm run sync:sedes            # copia las sedes desde Locations
 npm run sync:employees        # (opcional) copia los empleados
-npm run seed:dev              # SOLO pruebas: gerencias + permisos del usuario de desarrollo en todas las sedes activas
+npm run seed:dev              # SOLO pruebas: permisos del usuario de desarrollo en todas las sedes activas
 npm run dev                   # http://localhost:3000
 
 # Frontend (otra terminal)
@@ -74,14 +75,15 @@ DATABASE_URL="postgresql://usuario:clave@localhost:5432/intranet?schema=sorteos_
 ```
 
 Cubren: autenticación (token ausente/falso/vencido/`alg:none`), permisos por sede, sedes inactivas, flujo completo del sorteo
-(asistencia, `participa = NO`, cupos, nadie gana dos veces), **ejecuciones simultáneas** y las sincronizaciones desde la intranet.
+(asistencia, `participa = NO`, cupos, gerencias nuevas desde el CSV, nadie gana dos veces), **ejecuciones simultáneas**, cargas simultáneas con una misma gerencia nueva y las sincronizaciones desde la intranet.
 
 ## Guía de prueba manual
 
 1. Abrir http://localhost:5173 → **Registrar sorteo**. Elegir fecha, nombre y 2 o más sedes → *Crear sorteo*.
-2. Subir `docs/ejemplos/participantes_ejemplo.csv` (resultado esperado: 61 participantes, 0 errores; 6 con `NO`)
-   y `docs/ejemplos/cupos_ejemplo.csv` (16 cupos, suman 26). Probar también un CSV con una gerencia inventada: debe
-   aparecer en «filas con error» sin impedir cargar el resto.
+2. Subir `docs/ejemplos/cupos_ejemplo.csv` (16 cupos, suman 26; en una base vacía avisa «16 gerencia(s) nueva(s) creada(s)»)
+   y `docs/ejemplos/participantes_ejemplo.csv` (61 participantes, 0 errores; 6 con `NO`; ya no hay gerencias nuevas).
+   Probar también un CSV con una gerencia inventada: se crea, el aviso la lista, y como no tiene cupo sus participantes no ganan;
+   una fila sin gerencia aparece en «filas con error» sin impedir cargar el resto.
 3. **Listar asistencia:** elegir el sorteo (aparecen los 55 con `participa = SI`), buscar por nombre, marcar varios checks.
    Recargar la página y volver a abrir el sorteo: las marcas deben seguir ahí.
 4. **Ejecutar sorteo:** elegir el sorteo y pulsar «Sortear ganador #1». Tras el contador aparece el ganador y

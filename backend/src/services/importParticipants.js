@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import { readCsvRows } from '../utils/csv.js';
+import { resolveDepartments } from './departments.js';
 import { normalizeCedula, normalizeKey, normalizeText, parseSiNo } from '../utils/normalize.js';
 
 // Orden de columnas cuando el CSV no trae encabezado (según el manual del sistema anterior).
@@ -31,12 +32,9 @@ function resolveColumns(rows) {
 
 export async function importParticipants({ buffer, idSorteos, actor }) {
   const rows = await readCsvRows(buffer);
-  if (rows.length === 0) return { total: 0, created: 0, updated: 0, employeesCreated: 0, errors: [] };
+  if (rows.length === 0) return { total: 0, created: 0, updated: 0, employeesCreated: 0, departmentsCreated: [], errors: [] };
 
   const { order, dataRows } = resolveColumns(rows);
-  const departments = await prisma.department.findMany();
-  const deptByKey = new Map(departments.map((d) => [normalizeKey(d.name), d.idDepartment]));
-
   const errors = [];
   const valid = [];
   const seen = new Set();
@@ -49,12 +47,12 @@ export async function importParticipants({ buffer, idSorteos, actor }) {
 
     const cedula = normalizeCedula(rec.cedula);
     const participa = parseSiNo(rec.participa);
-    const idDepartment = deptByKey.get(normalizeKey(rec.gerencia));
+    const gerencia = normalizeKey(rec.gerencia);
 
     if (!cedula) errors.push({ line, reason: 'Cédula vacía' });
     else if (seen.has(cedula)) errors.push({ line, cedula, reason: 'Cédula repetida en el archivo' });
     else if (!normalizeText(rec.nombres) || !normalizeText(rec.apellidos)) errors.push({ line, cedula, reason: 'Falta nombres o apellidos' });
-    else if (idDepartment === undefined) errors.push({ line, cedula, reason: `Gerencia no existe: "${rec.gerencia}"` });
+    else if (!gerencia) errors.push({ line, cedula, reason: 'Falta la gerencia' });
     else if (participa === null) errors.push({ line, cedula, reason: `Valor de participa inválido: "${rec.participa}" (use SI/NO)` });
     else {
       seen.add(cedula);
@@ -63,7 +61,7 @@ export async function importParticipants({ buffer, idSorteos, actor }) {
         names: normalizeText(rec.nombres),
         lastName: normalizeText(rec.apellidos),
         jobTitle: normalizeText(rec.cargo).slice(0, 100),
-        idDepartment,
+        gerencia: rec.gerencia,
         participate: participa,
       });
     }
@@ -72,9 +70,14 @@ export async function importParticipants({ buffer, idSorteos, actor }) {
   let created = 0;
   let updated = 0;
   let employeesCreated = 0;
+  let departmentsCreated = [];
 
   await prisma.$transaction(
     async (tx) => {
+      // Las gerencias que no existan se crean con el nombre que trae el CSV (se informan en el resultado).
+      const resolved = await resolveDepartments(tx, valid.map((v) => v.gerencia));
+      departmentsCreated = resolved.created;
+
       const existingEmployees = await tx.employee.findMany({
         where: { cedula: { in: valid.map((v) => v.cedula) } },
         select: { cedula: true },
@@ -96,7 +99,7 @@ export async function importParticipants({ buffer, idSorteos, actor }) {
       const inSorteo = new Set(existingParticipants.map((p) => p.cedula));
 
       for (const v of valid) {
-        const data = { jobTitle: v.jobTitle, idDepartment: v.idDepartment, participate: v.participate };
+        const data = { jobTitle: v.jobTitle, idDepartment: resolved.byKey.get(normalizeKey(v.gerencia)), participate: v.participate };
         if (inSorteo.has(v.cedula)) {
           await tx.participant.update({
             where: { idSorteos_cedula: { idSorteos, cedula: v.cedula } },
@@ -112,5 +115,5 @@ export async function importParticipants({ buffer, idSorteos, actor }) {
     { timeout: 60000 },
   );
 
-  return { total: dataRows.length, created, updated, employeesCreated, errors };
+  return { total: dataRows.length, created, updated, employeesCreated, departmentsCreated, errors };
 }

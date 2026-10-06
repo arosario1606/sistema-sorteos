@@ -37,7 +37,8 @@ Dependencia nueva en el frontend de la intranet: ninguna que no tenga ya (`@tans
    `DATABASE_URL="postgresql://usuario:clave@host:5432/intranet?schema=sorteos"` → `npm run migrate:deploy` (el `Dockerfile` ya lo hace al arrancar).
 2. **Datos iniciales.** `npm run sync:sedes` (copia `Locations`) y `npm run sync:employees` (copia empleados). Después, desactivar a mano
    las sedes que no participan en sorteos (`UPDATE "Sede" SET active = false WHERE id_sede IN (...)`); el `sync` no las reactiva.
-   Las gerencias (`Department`) y los permisos (`User_branch_permission`: `user_id` = `Users.id`, `user_email`, `id_sede`) se cargan aparte.
+   Las gerencias (`Department`) se crean solas con las que traigan los CSV de participantes y de cupos. Los permisos
+   (`User_branch_permission`: `user_id` = `Users.id`, `user_email`, `id_sede`) se cargan aparte.
 3. **Variables del servicio:** `DATABASE_URL`, `PORT=3000`, `SERVICES_SECRET_KEY` (el MISMO valor que el gateway; no se sube al repo).
 4. **docker-compose de la intranet:** agregar el servicio con un puerto libre y poner ese puerto en `LOTTERY_SERVICE_PORT` del archivo de gateway.
 5. **Registrar rutas:** ejecutar `seed-rutas-sorteos.js` y asignar las rutas `/lottery-service` al grupo de permisos que corresponda

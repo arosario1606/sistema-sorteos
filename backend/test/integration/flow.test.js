@@ -30,7 +30,6 @@ before(async () => {
       { userId: OTHER.id, userEmail: OTHER.email, idSede: 4, createdBy: 'test' },
     ],
   });
-  await prisma.department.createMany({ data: [{ name: 'GERENCIA A' }, { name: 'GERENCIA B' }] });
 });
 
 after(async () => {
@@ -115,22 +114,25 @@ const PARTICIPANTS = [
   '1008;MORA;TOMAS;ANALISTA;GERENCIA INVENTADA;SI',
 ].join('\n');
 
-test('carga de CSV: cupos, participantes, errores por fila y empleados nuevos', async () => {
+test('carga de CSV: cupos, participantes, gerencias nuevas y empleados nuevos', async () => {
   const id = await newSorteo('Carga');
-  const quotas = await api.upload(`/quotas/upload?id=${id}`, tkAdmin(), 'GERENCIA A;2\nGERENCIA B;1\nNO EXISTE;3\n');
-  assert.equal(quotas.body.saved, 2);
-  assert.equal(quotas.body.errors.length, 1);
+  const quotas = await api.upload(`/quotas/upload?id=${id}`, tkAdmin(), 'GERENCIA A;2\nGERENCIA B;1\nOTRA;3\n;5\nGERENCIA B;9\nX;abc\n');
+  assert.equal(quotas.body.saved, 3);
+  assert.deepEqual(quotas.body.departmentsCreated, ['GERENCIA A', 'GERENCIA B', 'OTRA'], 'en una base vacía se crean las gerencias del CSV');
+  assert.deepEqual(quotas.body.errors.map((e) => e.reason), ['Falta la gerencia', 'Gerencia repetida: "GERENCIA B"', 'Cantidad inválida: "abc"']);
 
-  const res = await api.upload(`/participants/upload?id=${id}`, tkAdmin(), PARTICIPANTS);
+  const res = await api.upload(`/participants/upload?id=${id}`, tkAdmin(), `${PARTICIPANTS}\n1009;SANZ;EVA;ANALISTA;;SI`);
   assert.equal(res.status, 200);
-  assert.equal(res.body.created, 7);
-  assert.equal(res.body.errors.length, 1, 'la gerencia inventada se rechaza sin frenar el resto');
-  assert.equal(res.body.employeesCreated, 7, 'cédulas desconocidas se registran como empleados nuevos');
+  assert.equal(res.body.created, 8);
+  assert.deepEqual(res.body.departmentsCreated, ['GERENCIA INVENTADA'], 'solo se crean las que no existían (sin distinguir mayúsculas)');
+  assert.deepEqual(res.body.errors.map((e) => e.reason), ['Falta la gerencia'], 'solo la fila sin gerencia se rechaza, sin frenar el resto');
+  assert.equal(res.body.employeesCreated, 8, 'cédulas desconocidas se registran como empleados nuevos');
   assert.equal(await prisma.employee.count({ where: { cedula: '1001' } }), 1);
 
   const again = await api.upload(`/participants/upload?id=${id}`, tkAdmin(), PARTICIPANTS);
   assert.equal(again.body.created, 0, 'recargar el mismo archivo no duplica');
-  assert.equal(again.body.updated, 7);
+  assert.equal(again.body.updated, 8);
+  assert.deepEqual(again.body.departmentsCreated, [], 'ya no hay gerencias nuevas');
 
   assert.equal((await api.upload(`/participants/upload?id=${id}`, tkAdmin(), '')).body.total, 0);
   assert.equal((await api.post(`/participants/upload?id=${id}`, tkAdmin())).status, 400, 'sin archivo');
@@ -143,7 +145,7 @@ test('sorteo completo: respeta asistencia, participa=NO y cupos; nadie se repite
   await api.upload(`/participants/upload?id=${id}`, tkAdmin(), PARTICIPANTS);
 
   const list = (await api.get(`/attendance/list?id=${id}`, tkAdmin())).body;
-  assert.equal(list.rows.length, 6, 'solo participa=SI y gerencia válida');
+  assert.equal(list.rows.length, 7, 'solo participa=SI (1007 es NO)');
   assert.ok(list.rows.every((r) => r.fullName !== ''), 'el nombre sale de Employee');
 
   // Asisten todos menos el de cédula 1004.
@@ -167,7 +169,7 @@ test('sorteo completo: respeta asistencia, participa=NO y cupos; nadie se repite
   assert.equal(end.body.finished, true);
 
   assert.equal(new Set(winners.map((w) => w.cedula)).size, 3, 'nadie gana dos veces');
-  assert.ok(!winners.some((w) => ['1004', '1007', '1008'].includes(w.cedula)), 'no gana quien no asistió, no participa o tiene gerencia inválida');
+  assert.ok(!winners.some((w) => ['1004', '1007', '1008'].includes(w.cedula)), 'no gana quien no asistió, no participa o su gerencia nueva no tiene cupo');
   assert.equal(winners.filter((w) => w.department === 'GERENCIA A').length, 2, 'cupo de A');
   assert.equal(winners.filter((w) => w.department === 'GERENCIA B').length, 1, 'cupo de B');
 
@@ -198,4 +200,20 @@ test('ejecuciones simultáneas no repiten orden ni exceden el cupo', async () =>
   assert.deepEqual(ok.map((r) => r.body.winningOrder).sort(), [1, 2, 3]);
   assert.equal(new Set(ok.map((r) => r.body.cedula)).size, 3);
   assert.ok(results.filter((r) => r.status !== 201).every((r) => r.status === 409));
+});
+
+test('gerencias: se reutilizan sin distinguir mayúsculas, tildes ni espacios', async () => {
+  const id = await newSorteo('Gerencias');
+  const csv = '2001;A;B;X;Gerencia  Tecnología;SI\n2002;C;D;X;GERENCIA TECNOLOGIA;SI\n2003;E;F;X;gerencia_tecnologia;SI';
+  const res = await api.upload(`/participants/upload?id=${id}`, tkAdmin(), csv);
+  assert.equal(res.body.created, 3);
+  assert.deepEqual(res.body.departmentsCreated, ['GERENCIA TECNOLOGÍA']);
+  assert.equal((await prisma.department.findMany()).filter((d) => /TECNOLOG/i.test(d.name)).length, 1);
+});
+
+test('cargas simultáneas con la misma gerencia nueva no la duplican', async () => {
+  const ids = await Promise.all([newSorteo('Carrera 1'), newSorteo('Carrera 2'), newSorteo('Carrera 3')]);
+  await Promise.all(ids.map((id, i) =>
+    api.upload(`/participants/upload?id=${id}`, tkAdmin(), `${3000 + i};A;B;X;GERENCIA CARRERA;SI`)));
+  assert.equal(await prisma.department.count({ where: { name: 'GERENCIA CARRERA' } }), 1);
 });
