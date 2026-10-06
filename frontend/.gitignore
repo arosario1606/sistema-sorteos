@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Generado por TanStack Router al compilar
+src/routeTree.gen.js
+.env.local
+.env

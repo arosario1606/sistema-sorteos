@@ -1,13 +1,15 @@
 # Sistema de Sorteos
 
-Migración del sistema de sorteos de la intranet. Backend: Node + Express + Prisma (MySQL). Frontend: React + Vite.
+Módulo de sorteos de la intranet. Backend: Node + Express + Prisma sobre **PostgreSQL** (esquema propio `sorteos`).
+Frontend: React + Vite (misma pila que `intranet-frontend`). Se integra detrás del gateway de la intranet:
+ver [`docs/integracion/INTEGRACION.md`](docs/integracion/INTEGRACION.md).
 
 ## Flujo del sistema
 
-1. **Registrar sorteo:** fecha, nombre y sedes que forman el grupo del sorteo (solo sedes con permiso del usuario).
+1. **Registrar sorteo:** fecha, nombre y sedes que forman el grupo del sorteo (solo sedes activas con permiso del usuario).
 2. Subir el **CSV de participantes** (RRHH) y el **CSV de cupos** por gerencia.
 3. **Listar asistencia:** marcar con un check quién asistió (se guarda al instante).
-4. **Ejecutar sorteo:** cada pulsación de «Sortear» saca un ganador, hasta que no queden elegibles.
+4. **Ejecutar sorteo:** cada pulsación de «Sortear» saca un ganador (cuenta regresiva de 3,5 s), hasta que no queden elegibles.
 
 Elegible = `participa = SI` + asistió + no ha ganado + su gerencia aún tiene cupo en el grupo.
 Los cupos son por gerencia dentro del grupo (las sedes del grupo comparten gerencias).
@@ -18,51 +20,75 @@ Una gerencia sin cupo cargado no tiene ganadores.
 - Separador `;` o `,`; UTF-8 o Latin-1; con o sin encabezado.
 - **Participantes** (sin encabezado): `cedula;apellidos;nombres;cargo;gerencia;participa`. `participa` = `SI`/`NO`.
   La cédula se limpia a letras y números (`28624356-1` → `286243561`). La gerencia debe existir en `Department`
-  (no distingue mayúsculas ni tildes). Cédulas que no estén en `Employee` se registran (activas).
+  (no distingue mayúsculas ni tildes). Las cédulas que no estén en `Employee` se registran como empleados nuevos.
 - **Cupos**: `gerencia;cantidad`.
 
 Ejemplos con datos ficticios en `docs/ejemplos/`.
 
+## Datos propios y datos de la intranet
+
+| Tabla del módulo | Origen |
+|---|---|
+| `Sede` | Copia de `intranet_api_auth_manager."Locations"` (`npm run sync:sedes`). `active = false` oculta una sede al crear sorteos nuevos sin perder el historial. |
+| `Employee` | Copia de `intranet_employees_db."Employee"` (`npm run sync:employees`) + cédulas nuevas que lleguen en los CSV. Se actualiza a mano cuando haga falta. |
+| `User_branch_permission` | Propia: `user_id` (= `Users.id` de la intranet), `user_email` (informativo) e `id_sede`. |
+| `Department` | Propia (gerencias). |
+
 ## Puesta en marcha local
+
+Requisitos: Node 22 y un PostgreSQL con la base `intranet` (con los esquemas `intranet_api_auth_manager` e `intranet_employees_db` si se usarán los `sync`).
 
 ```bash
 # Backend
 cd backend
-cp .env.example .env        # ajustar DATABASE_URL y DEV_USER_CODE
+cp .env.example .env          # ajustar DATABASE_URL, SERVICES_SECRET_KEY (de PRUEBA), DEV_USER_ID y DEV_USER_EMAIL
 npm install
-npx prisma db push          # crea/sincroniza las tablas (ver nota)
-npm run seed:dev            # SOLO base de pruebas: sedes, gerencias y permisos del usuario de desarrollo
-npm run dev                 # http://localhost:3000
+npm run migrate:deploy        # crea el esquema "sorteos" y sus tablas (versionadas en prisma/migrations)
+npm run sync:sedes            # copia las sedes desde Locations
+npm run sync:employees        # (opcional) copia los empleados
+npm run seed:dev              # SOLO pruebas: gerencias + permisos del usuario de desarrollo en todas las sedes activas
+npm run dev                   # http://localhost:3000
 
 # Frontend (otra terminal)
 cd frontend
+cp .env.example .env.local    # pegar DEV_AUTH_TOKEN, que se genera con: (cd ../backend && npm run dev:token)
 npm install
-npm run dev                 # http://localhost:5173 (redirige /api al backend)
+npm run dev                   # http://localhost:5173
 ```
 
-> **Nota:** el proyecto no tiene migraciones; `prisma db push` sincroniza el schema. En una base que ya tenga
-> las tablas solo debe agregar `@unique` en `Employee.cedula` y `@@unique([idSorteos, cedula])` en `Participant`.
-> Si hay cédulas repetidas en `Employee`, el comando fallará hasta depurarlas.
+> El backend **siempre** exige `x-auth-token`. En local, Vite lo agrega al reenviar `/apiv1/lottery-service` (imita al gateway
+> de la intranet). El token de prueba dura 8 h; si vence aparece «Sin sesión»: genere otro con `npm run dev:token`.
 
-## Autenticación (provisional)
+Para cambios de esquema: editar `prisma/schema.prisma` y `npm run migrate:dev` (genera la migración). En producción solo `migrate:deploy`.
+No se usa `db push`.
 
-El usuario sale de `DEV_USER_CODE` (o del header `x-user-code`) y sus sedes de `User_branch_permission`.
-Se reemplazará por el token de la intranet en `backend/src/middleware/auth.js` (+ `frontend/src/api.js`).
+## Pruebas
+
+```bash
+cd backend
+npm test                      # unitarias (sin base de datos)
+
+# Integración: usan un esquema DESCARTABLE; borran sus tablas, por eso exigen ?schema=sorteos_test
+DATABASE_URL="postgresql://usuario:clave@localhost:5432/intranet?schema=sorteos_test" npm run test:integration
+```
+
+Cubren: autenticación (token ausente/falso/vencido/`alg:none`), permisos por sede, sedes inactivas, flujo completo del sorteo
+(asistencia, `participa = NO`, cupos, nadie gana dos veces), **ejecuciones simultáneas** y las sincronizaciones desde la intranet.
 
 ## Guía de prueba manual
 
 1. Abrir http://localhost:5173 → **Registrar sorteo**. Elegir fecha, nombre y 2 o más sedes → *Crear sorteo*.
-2. Subir `docs/ejemplos/participantes_ejemplo.csv` (resultado esperado: 61 filas, 0 errores; 5 con `NO`)
-   y `docs/ejemplos/cupos_ejemplo.csv` (16 cupos). Probar también un CSV con una gerencia inventada: debe
+2. Subir `docs/ejemplos/participantes_ejemplo.csv` (resultado esperado: 61 participantes, 0 errores; 6 con `NO`)
+   y `docs/ejemplos/cupos_ejemplo.csv` (16 cupos, suman 26). Probar también un CSV con una gerencia inventada: debe
    aparecer en «filas con error» sin impedir cargar el resto.
-3. **Listar asistencia:** elegir el sorteo, buscar por nombre, marcar varios checks. Recargar la página y
-   volver a abrir el sorteo: las marcas deben seguir ahí. Solo aparecen los de `participa = SI`.
+3. **Listar asistencia:** elegir el sorteo (aparecen los 55 con `participa = SI`), buscar por nombre, marcar varios checks.
+   Recargar la página y volver a abrir el sorteo: las marcas deben seguir ahí.
 4. **Ejecutar sorteo:** elegir el sorteo y pulsar «Sortear ganador #1». Tras el contador aparece el ganador y
    se agrega a la lista con su número de orden. Repetir hasta que el botón se deshabilite y aparezca
-   «Sorteo finalizado». Nadie se repite y ninguna gerencia supera su cupo.
+   «Sorteo finalizado» (con todos asistiendo salen 26 ganadores). Nadie se repite y ninguna gerencia supera su cupo.
 
 Para repetir el sorteo desde cero:
 
 ```sql
-DELETE FROM Winner WHERE id_participant IN (SELECT id_participant FROM Participant WHERE id_sorteos = <ID>);
+DELETE FROM sorteos."Winner" WHERE id_participant IN (SELECT id_participant FROM sorteos."Participant" WHERE id_sorteos = <ID>);
 ```

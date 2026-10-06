@@ -1,16 +1,13 @@
-# React + Vite
+# Frontend de Sorteos
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 18 + Vite + Tailwind 3 + TanStack Router (file-based), con la misma pila y convenciones que `intranet-frontend`
+para poder integrarse copiando carpetas (ver `docs/integracion/INTEGRACION.md`).
 
-Currently, two official plugins are available:
+```
+src/components/main/content/lottery/   ← LO QUE SE LLEVA A LA INTRANET (pantallas, cliente de API, estilos compartidos)
+src/routes/_content/*.jsx              ← rutas de las 3 pantallas (/lotteryreg, /listassist, /execlottery)
+src/routes/{__root,_content,index}.jsx ← SOLO DESARROLLO: layout que imita a la intranet; no se copia
+```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Desarrollo: `cp .env.example .env.local`, pegar `DEV_AUTH_TOKEN` (`npm run dev:token` en `backend/`) y `npm run dev`
+(http://localhost:5173; Vite reenvía `/apiv1/lottery-service` al backend y le agrega `x-auth-token` como lo hace el gateway).

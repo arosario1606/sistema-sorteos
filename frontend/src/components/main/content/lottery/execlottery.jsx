@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { api } from '../api'
-import SorteoSelect from '../components/SorteoSelect'
+import { api } from './lottery-api'
+import SorteoSelect from './sorteo-select'
+import { ui } from './ui'
+import WinnersTable from './winners-table'
 
-const SPIN_MS = 5000
+const SPIN_MS = 3500
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-export default function EjecutarSorteo() {
+// Ejecutar sorteo: cada pulsación saca un ganador hasta que no queden elegibles.
+const ExecLottery = () => {
   const [idSorteos, setIdSorteos] = useState(null)
   const [winners, setWinners] = useState([])
   const [pool, setPool] = useState([])
@@ -70,56 +73,44 @@ export default function EjecutarSorteo() {
   const nextOrder = winners.length + 1
 
   return (
-    <div className="card">
-      <h2>Ejecutar sorteo</h2>
+    <div className={ui.card}>
+      <h2 className={ui.title}>Ejecutar sorteo</h2>
       <SorteoSelect value={idSorteos} onChange={selectSorteo}>
-        <button className="success star" onClick={run} disabled={!idSorteos || remaining === null || spinning || finished} title="Sacar un ganador">
+        <button
+          className={`${ui.btnAccent} text-base`}
+          onClick={run}
+          disabled={!idSorteos || remaining === null || spinning || finished}
+          title="Sacar un ganador"
+        >
           ★ Sortear ganador #{nextOrder}
         </button>
       </SorteoSelect>
 
       {spinning && (
-        <div className="stage">
-          <div className="clock">{clock}s</div>
-          <div className="spinner-name">{shown || '…'}</div>
+        <div className="my-4 rounded-lg bg-sky-50 p-8 text-center" aria-live="polite">
+          <div className="text-4xl font-bold text-primary">{clock}s</div>
+          <div className="mt-2 text-xl text-gray-600">{shown || '…'}</div>
         </div>
       )}
       {!spinning && latest && (
-        <div className="stage winner-reveal">
-          <div className="trophy">🏆 Ganador #{latest.winningOrder}</div>
-          <div className="winner-name">{latest.names} {latest.lastName}</div>
-          <div className="winner-meta">{latest.jobTitle} · {latest.department}</div>
+        <div className="my-4 rounded-lg bg-green-50 p-8 text-center" aria-live="polite">
+          <div className="text-lg font-semibold text-accent">🏆 Ganador #{latest.winningOrder}</div>
+          <div className="mt-1 text-3xl font-bold text-gray-800">{latest.names} {latest.lastName}</div>
+          <div className="mt-1 text-gray-600">{latest.jobTitle} · {latest.department}</div>
         </div>
       )}
       {finished && !spinning && (
-        <p className="msg done">
+        <p className={ui.success}>
           {winners.length > 0
             ? `Sorteo finalizado: ya salieron los ${winners.length} ganadores.`
             : 'No hay participantes elegibles: marque la asistencia y cargue los cupos por gerencia.'}
         </p>
       )}
-      {error && !finished && <p className="msg error">{error}</p>}
+      {error && !finished && <p className={ui.error}>{error}</p>}
 
-      {idSorteos && (
-        <>
-          <h3>Ganadores ({winners.length})</h3>
-          <table>
-            <thead><tr><th>Orden</th><th>Cédula</th><th>Nombre y apellido</th><th>Cargo</th><th>Gerencia</th></tr></thead>
-            <tbody>
-              {winners.map((w) => (
-                <tr key={w.winningOrder} className={latest?.winningOrder === w.winningOrder ? 'attended' : ''}>
-                  <td className="center">{w.winningOrder}</td>
-                  <td>{w.cedula}</td>
-                  <td>{w.names} {w.lastName}</td>
-                  <td>{w.jobTitle}</td>
-                  <td>{w.department}</td>
-                </tr>
-              ))}
-              {winners.length === 0 && <tr><td colSpan="5" className="center hint">Aún no hay ganadores</td></tr>}
-            </tbody>
-          </table>
-        </>
-      )}
+      {idSorteos && <WinnersTable winners={winners} latestOrder={latest?.winningOrder} />}
     </div>
   )
 }
+
+export default ExecLottery

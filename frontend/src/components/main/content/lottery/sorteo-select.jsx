@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { api, formatDate } from '../api'
+import { api, formatDate } from './lottery-api'
+import { ui } from './ui'
 
 // Selector de sorteo; avisa al padre con el id elegido.
 export default function SorteoSelect({ value, onChange, refreshKey = 0, children }) {
@@ -11,8 +12,13 @@ export default function SorteoSelect({ value, onChange, refreshKey = 0, children
   }, [refreshKey])
 
   return (
-    <div className="toolbar">
-      <select value={value ?? ''} onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}>
+    <div className={ui.toolbar}>
+      <select
+        className={ui.input}
+        aria-label="Sorteo"
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
+      >
         <option value="">Seleccione sorteo</option>
         {sorteos.map((s) => (
           <option key={s.idSorteos} value={s.idSorteos}>
@@ -21,7 +27,7 @@ export default function SorteoSelect({ value, onChange, refreshKey = 0, children
         ))}
       </select>
       {children}
-      {error && <span className="msg error">{error}</span>}
+      {error && <span className={ui.error}>{error}</span>}
     </div>
   )
 }
