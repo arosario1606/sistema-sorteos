@@ -3,7 +3,7 @@ import { readCsvRows } from '../utils/csv.js';
 import { normalizeKey } from '../utils/normalize.js';
 
 // Formato esperado: gerencia, cantidad (con o sin encabezado).
-export async function importQuotas({ buffer, groupId, userCode }) {
+export async function importQuotas({ buffer, groupId, actor }) {
   const rows = await readCsvRows(buffer);
   const dataRows = rows.length && !/^\d+$/.test(rows[0].cells[1] ?? '') ? rows.slice(1) : rows;
 
@@ -26,8 +26,8 @@ export async function importQuotas({ buffer, groupId, userCode }) {
     for (const [idDepartment, allowedQuantity] of quotas) {
       await tx.departmentQuota.upsert({
         where: { groupId_idDepartment: { groupId, idDepartment } },
-        create: { groupId, idDepartment, allowedQuantity, createdBy: userCode },
-        update: { allowedQuantity, updatedBy: userCode },
+        create: { groupId, idDepartment, allowedQuantity, createdBy: actor },
+        update: { allowedQuantity, updatedBy: actor },
       });
     }
   });

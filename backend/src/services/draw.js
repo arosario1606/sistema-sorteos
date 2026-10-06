@@ -27,7 +27,7 @@ async function loadState(db, idSorteos, groupId) {
   }
 
   const candidates = await db.participant.findMany({
-    where: { idSorteos, participate: 1, attended: 1, winner: null },
+    where: { idSorteos, participate: true, attended: true, winner: null },
   });
   return {
     hasQuotas: quotas.length > 0,
@@ -41,8 +41,9 @@ async function loadState(db, idSorteos, groupId) {
 
 export async function drawNextWinner(idSorteos) {
   return prisma.$transaction(async (tx) => {
-    // Bloquea el sorteo para que dos ejecuciones simultáneas no generen el mismo orden.
-    const [sorteo] = await tx.$queryRaw`SELECT id_sorteos, group_id FROM Sorteos WHERE id_sorteos = ${idSorteos} FOR UPDATE`;
+    // Bloquea la fila del sorteo para que dos ejecuciones simultáneas no generen el mismo orden.
+    // La tabla se resuelve en el esquema de DATABASE_URL (?schema=...) y, al tener mayúscula, va entre comillas.
+    const [sorteo] = await tx.$queryRaw`SELECT id_sorteos, group_id FROM "Sorteos" WHERE id_sorteos = ${idSorteos} FOR UPDATE`;
     if (!sorteo) throw new HttpError(404, 'Sorteo no encontrado');
 
     const state = await loadState(tx, idSorteos, sorteo.group_id);

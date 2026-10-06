@@ -2,12 +2,15 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// PostgreSQL de la intranet. Todas las tablas del módulo viven en su propio esquema
+// (el que indique DATABASE_URL con ?schema=sorteos); no se tocan los esquemas de otros sistemas.
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// 1. Employee
+// 1. Employee: copia propia de los empleados (se actualiza con `npm run sync:employees`
+//    y se completa con las cédulas nuevas que lleguen en los CSV de participantes).
 model Employee {
   employeeId Int       @id @default(autoincrement()) @map("employee_id")
   cedula     String    @unique @db.VarChar(50)
@@ -15,17 +18,21 @@ model Employee {
   lastName   String    @map("last_name") @db.VarChar(100)
   bornDate   DateTime? @map("bornDate") @db.Date
   email      String?   @db.VarChar(150)
-  isActive   Int       @default(1) @map("isActive")
+  isActive   Boolean   @default(true) @map("isActive")
   createdAt  DateTime  @default(now()) @map("createdAt")
   updatedAt  DateTime  @default(now()) @updatedAt @map("updatedAt")
 
   @@map("Employee")
 }
 
-// 2. Sede
+// 2. Sede: sedes elegibles para sorteos. idSede = id de Locations en la intranet.
+//    `active = false` las oculta al crear sorteos nuevos sin perder el historial.
 model Sede {
-  idSede Int    @id @map("id_sede")
-  name   String @db.VarChar(150)
+  idSede    Int      @id @map("id_sede")
+  name      String   @db.VarChar(150)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   userPermissions    UserBranchPermission[]
   branchGroupDetails BranchGroupDetail[]
@@ -33,16 +40,18 @@ model Sede {
   @@map("Sede")
 }
 
-// 3. User_branch_permission
+// 3. User_branch_permission: sedes sobre las que un usuario puede crear sorteos.
+//    userId = Users.id de la intranet (viene en el token); userEmail es solo informativo.
 model UserBranchPermission {
-  userCode  String   @map("user_code") @db.VarChar(50)
+  userId    Int      @map("user_id")
+  userEmail String   @map("user_email") @db.VarChar(150)
   idSede    Int      @map("id_sede")
   createdBy String   @map("created_by") @db.VarChar(100)
   createdAt DateTime @default(now()) @map("created_at")
 
   sede Sede @relation(fields: [idSede], references: [idSede], onDelete: Cascade)
 
-  @@id([userCode, idSede])
+  @@id([userId, idSede])
   @@map("User_branch_permission")
 }
 
@@ -129,8 +138,8 @@ model Participant {
   cedula        String   @db.VarChar(50)
   idDepartment  Int      @map("id_department")
   jobTitle      String   @map("job_title") @db.VarChar(100)
-  participate   Int      @default(1)
-  attended      Int      @default(0)
+  participate   Boolean  @default(true)
+  attended      Boolean  @default(false)
   createdBy     String   @map("created_by") @db.VarChar(100)
   updatedBy     String?  @map("updated_by") @db.VarChar(100)
   createdAt     DateTime @default(now()) @map("created_at")

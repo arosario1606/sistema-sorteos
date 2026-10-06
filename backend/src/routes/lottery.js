@@ -7,6 +7,9 @@ import { importParticipants } from '../services/importParticipants.js';
 import { importQuotas } from '../services/importQuotas.js';
 import { drawNextWinner, getDrawStatus } from '../services/draw.js';
 
+// IMPORTANTE: el gateway de la intranet autoriza por ruta EXACTA (Routes_backend_child.route_path),
+// así que no se usan parámetros en el path: el id del sorteo viaja en `?id=` o en el body.
+// Cada ruta de abajo debe estar registrada en la intranet (ver docs/integracion/seed-rutas-sorteos.js).
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -15,8 +18,18 @@ function requireFile(req) {
   return req.file.buffer;
 }
 
+// Usuario autenticado y las sedes sobre las que puede crear sorteos
+router.get('/me', asyncHandler(async (req, res) => {
+  const sedes = await prisma.sede.findMany({
+    where: { idSede: { in: req.user.activeSedeIds }, active: true },
+    select: { idSede: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+  res.json({ userId: req.user.id, email: req.user.email, sedes });
+}));
+
 // Sorteos visibles para el usuario (grupo con al menos una sede permitida)
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/sorteos', asyncHandler(async (req, res) => {
   const sorteos = await prisma.sorteos.findMany({
     where: { branchGroup: { details: { some: { idSede: { in: req.user.sedeIds } } } } },
     orderBy: [{ sorteoDate: 'desc' }, { idSorteos: 'desc' }],
@@ -27,12 +40,12 @@ router.get('/', asyncHandler(async (req, res) => {
     name: s.name,
     sorteoDate: s.sorteoDate,
     groupId: s.groupId,
-    sedes: s.branchGroup.details.map((d) => d.sede),
+    sedes: s.branchGroup.details.map((d) => ({ idSede: d.sede.idSede, name: d.sede.name })),
   })));
 }));
 
 // Registrar sorteo + agrupar sedes
-router.post('/', asyncHandler(async (req, res) => {
+router.post('/sorteos/create', asyncHandler(async (req, res) => {
   const { name, sorteoDate, sedeIds } = req.body ?? {};
   const date = new Date(`${sorteoDate}T00:00:00.000Z`);
   if (!name?.trim()) throw new HttpError(400, 'El nombre del sorteo es obligatorio');
@@ -40,7 +53,7 @@ router.post('/', asyncHandler(async (req, res) => {
   if (!Array.isArray(sedeIds) || sedeIds.length === 0) throw new HttpError(400, 'Seleccione al menos una sede');
 
   const ids = [...new Set(sedeIds.map(Number))];
-  if (ids.some((id) => !req.user.sedeIds.includes(id))) {
+  if (ids.some((id) => !Number.isInteger(id) || !req.user.activeSedeIds.includes(id))) {
     throw new HttpError(403, 'No tienes permiso sobre alguna de las sedes seleccionadas');
   }
 
@@ -48,19 +61,19 @@ router.post('/', asyncHandler(async (req, res) => {
     const group = await tx.branchGroup.create({
       data: {
         name: name.trim(),
-        createdBy: req.user.code,
+        createdBy: req.user.email,
         details: { create: ids.map((idSede) => ({ idSede })) },
       },
     });
     return tx.sorteos.create({
-      data: { name: name.trim(), sorteoDate: date, groupId: group.groupId, createdBy: req.user.code },
+      data: { name: name.trim(), sorteoDate: date, groupId: group.groupId, createdBy: req.user.email },
     });
   });
   res.status(201).json(sorteo);
 }));
 
-router.get('/:id', asyncHandler(async (req, res) => {
-  const sorteo = await getAccessibleSorteo(parseId(req.params.id), req.user);
+router.get('/sorteos/detail', asyncHandler(async (req, res) => {
+  const sorteo = await getAccessibleSorteo(parseId(req.query.id), req.user);
   const [quotas, participants, attended, winners] = await Promise.all([
     prisma.departmentQuota.findMany({
       where: { groupId: sorteo.groupId },
@@ -68,7 +81,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
       orderBy: { department: { name: 'asc' } },
     }),
     prisma.participant.count({ where: { idSorteos: sorteo.idSorteos } }),
-    prisma.participant.count({ where: { idSorteos: sorteo.idSorteos, attended: 1 } }),
+    prisma.participant.count({ where: { idSorteos: sorteo.idSorteos, attended: true } }),
     prisma.winner.count({ where: { participant: { idSorteos: sorteo.idSorteos } } }),
   ]);
   res.json({
@@ -76,39 +89,37 @@ router.get('/:id', asyncHandler(async (req, res) => {
     name: sorteo.name,
     sorteoDate: sorteo.sorteoDate,
     groupId: sorteo.groupId,
-    sedes: sorteo.branchGroup.details.map((d) => d.sede),
+    sedes: sorteo.branchGroup.details.map((d) => ({ idSede: d.sede.idSede, name: d.sede.name })),
     quotas: quotas.map((q) => ({ idDepartment: q.idDepartment, department: q.department.name, allowedQuantity: q.allowedQuantity })),
     counts: { participants, attended, winners },
   });
 }));
 
 // Carga del CSV de RRHH
-router.post('/:id/participantes', upload.single('archivo'), asyncHandler(async (req, res) => {
-  const sorteo = await getAccessibleSorteo(parseId(req.params.id), req.user);
-  const result = await importParticipants({
+router.post('/participants/upload', upload.single('archivo'), asyncHandler(async (req, res) => {
+  const sorteo = await getAccessibleSorteo(parseId(req.query.id), req.user);
+  res.json(await importParticipants({
     buffer: requireFile(req),
     idSorteos: sorteo.idSorteos,
-    userCode: req.user.code,
-  });
-  res.json(result);
+    actor: req.user.email,
+  }));
 }));
 
 // Carga del CSV de cupos por gerencia
-router.post('/:id/cupos', upload.single('archivo'), asyncHandler(async (req, res) => {
-  const sorteo = await getAccessibleSorteo(parseId(req.params.id), req.user);
-  const result = await importQuotas({
+router.post('/quotas/upload', upload.single('archivo'), asyncHandler(async (req, res) => {
+  const sorteo = await getAccessibleSorteo(parseId(req.query.id), req.user);
+  res.json(await importQuotas({
     buffer: requireFile(req),
     groupId: sorteo.groupId,
-    userCode: req.user.code,
-  });
-  res.json(result);
+    actor: req.user.email,
+  }));
 }));
 
 // Listado de asistencia
-router.get('/:id/asistencia', asyncHandler(async (req, res) => {
-  const sorteo = await getAccessibleSorteo(parseId(req.params.id), req.user);
+router.get('/attendance/list', asyncHandler(async (req, res) => {
+  const sorteo = await getAccessibleSorteo(parseId(req.query.id), req.user);
   const participants = await prisma.participant.findMany({
-    where: { idSorteos: sorteo.idSorteos, participate: 1 },
+    where: { idSorteos: sorteo.idSorteos, participate: true },
     include: { department: true },
     orderBy: { idParticipant: 'asc' },
   });
@@ -127,7 +138,7 @@ router.get('/:id/asistencia', asyncHandler(async (req, res) => {
         fullName: `${e?.names ?? ''} ${e?.lastName ?? ''}`.trim(),
         jobTitle: p.jobTitle,
         department: p.department.name,
-        attended: p.attended === 1,
+        attended: p.attended,
       };
     })
     .filter((r) => !search || `${r.fullName} ${r.cedula} ${r.jobTitle} ${r.department}`.toLowerCase().includes(search));
@@ -135,26 +146,27 @@ router.get('/:id/asistencia', asyncHandler(async (req, res) => {
   res.json({ sorteo: sorteo.name, attendedCount: rows.filter((r) => r.attended).length, rows });
 }));
 
-router.patch('/:id/asistencia/:idParticipant', asyncHandler(async (req, res) => {
-  const sorteo = await getAccessibleSorteo(parseId(req.params.id), req.user);
-  const idParticipant = parseId(req.params.idParticipant, 'idParticipant');
-  if (typeof req.body?.attended !== 'boolean') throw new HttpError(400, '"attended" debe ser true o false');
+router.post('/attendance/mark', asyncHandler(async (req, res) => {
+  const { idSorteos, idParticipant, attended } = req.body ?? {};
+  const sorteo = await getAccessibleSorteo(parseId(idSorteos, 'idSorteos'), req.user);
+  const participantId = parseId(idParticipant, 'idParticipant');
+  if (typeof attended !== 'boolean') throw new HttpError(400, '"attended" debe ser true o false');
 
-  const participant = await prisma.participant.findFirst({ where: { idParticipant, idSorteos: sorteo.idSorteos } });
+  const participant = await prisma.participant.findFirst({ where: { idParticipant: participantId, idSorteos: sorteo.idSorteos } });
   if (!participant) throw new HttpError(404, 'Participante no encontrado en este sorteo');
-  const hasWon = await prisma.winner.findUnique({ where: { idParticipant } });
-  if (hasWon && !req.body.attended) throw new HttpError(409, 'No se puede quitar la asistencia a un ganador');
+  const hasWon = await prisma.winner.findUnique({ where: { idParticipant: participantId } });
+  if (hasWon && !attended) throw new HttpError(409, 'No se puede quitar la asistencia a un ganador');
 
   await prisma.participant.update({
-    where: { idParticipant },
-    data: { attended: req.body.attended ? 1 : 0, updatedBy: req.user.code },
+    where: { idParticipant: participantId },
+    data: { attended, updatedBy: req.user.email },
   });
-  res.json({ idParticipant, attended: req.body.attended });
+  res.json({ idParticipant: participantId, attended });
 }));
 
 // Ejecutar sorteo: saca un ganador
-router.post('/:id/ejecutar', asyncHandler(async (req, res) => {
-  const sorteo = await getAccessibleSorteo(parseId(req.params.id), req.user);
+router.post('/draw/execute', asyncHandler(async (req, res) => {
+  const sorteo = await getAccessibleSorteo(parseId(req.query.id), req.user);
   const winner = await drawNextWinner(sorteo.idSorteos);
   if (!winner) {
     return res.status(409).json({ error: 'No quedan participantes elegibles (asistentes con cupo disponible en su gerencia)', finished: true });
@@ -162,8 +174,8 @@ router.post('/:id/ejecutar', asyncHandler(async (req, res) => {
   res.status(201).json(winner);
 }));
 
-router.get('/:id/ganadores', asyncHandler(async (req, res) => {
-  const sorteo = await getAccessibleSorteo(parseId(req.params.id), req.user);
+router.get('/draw/winners', asyncHandler(async (req, res) => {
+  const sorteo = await getAccessibleSorteo(parseId(req.query.id), req.user);
   res.json(await getDrawStatus(sorteo.idSorteos, sorteo.groupId));
 }));
 

@@ -29,7 +29,7 @@ function resolveColumns(rows) {
   return { order, dataRows: rows.slice(1) };
 }
 
-export async function importParticipants({ buffer, idSorteos, userCode }) {
+export async function importParticipants({ buffer, idSorteos, actor }) {
   const rows = await readCsvRows(buffer);
   if (rows.length === 0) return { total: 0, created: 0, updated: 0, employeesCreated: 0, errors: [] };
 
@@ -83,7 +83,7 @@ export async function importParticipants({ buffer, idSorteos, userCode }) {
       const missing = valid.filter((v) => !known.has(v.cedula));
       if (missing.length) {
         const r = await tx.employee.createMany({
-          data: missing.map((v) => ({ cedula: v.cedula, names: v.names, lastName: v.lastName, isActive: 1 })),
+          data: missing.map((v) => ({ cedula: v.cedula, names: v.names, lastName: v.lastName, isActive: true })),
           skipDuplicates: true,
         });
         employeesCreated = r.count;
@@ -100,11 +100,11 @@ export async function importParticipants({ buffer, idSorteos, userCode }) {
         if (inSorteo.has(v.cedula)) {
           await tx.participant.update({
             where: { idSorteos_cedula: { idSorteos, cedula: v.cedula } },
-            data: { ...data, updatedBy: userCode },
+            data: { ...data, updatedBy: actor },
           });
           updated++;
         } else {
-          await tx.participant.create({ data: { ...data, idSorteos, cedula: v.cedula, createdBy: userCode } });
+          await tx.participant.create({ data: { ...data, idSorteos, cedula: v.cedula, createdBy: actor } });
           created++;
         }
       }

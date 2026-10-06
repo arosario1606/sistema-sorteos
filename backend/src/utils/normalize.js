@@ -4,8 +4,8 @@ export function normalizeKey(value) {
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toUpperCase()
-    .replace(/[\s_]+/g, '_')
-    .trim();
+    .trim()
+    .replace(/[\s_]+/g, '_');
 }
 
 // Deja solo letras y números: "28.624.356-1" -> "286243561" (no se permiten guiones en Employee).
@@ -17,10 +17,10 @@ export function normalizeText(value) {
   return String(value ?? '').replace(/\s+/g, ' ').trim().toUpperCase();
 }
 
-// "SI"/"NO" -> 1/0; cualquier otro valor -> null
+// "SI"/"NO" -> true/false; cualquier otro valor -> null
 export function parseSiNo(value) {
   const v = normalizeKey(value);
-  if (v === 'SI') return 1;
-  if (v === 'NO') return 0;
+  if (v === 'SI') return true;
+  if (v === 'NO') return false;
   return null;
 }
