@@ -68,7 +68,8 @@ No se usa `db push`.
 cd backend
 npm test                      # unitarias (sin base de datos)
 
-# Integración: usan un esquema DESCARTABLE; borran sus tablas, por eso exigen ?schema=sorteos_test
+# Integración: usan esquemas DESCARTABLES (sorteos_test, sorteos_test_auth, sorteos_test_employees) y los limpian solos.
+# Nunca tocan sorteos ni los esquemas reales de la intranet; por eso exigen ?schema=sorteos_test
 DATABASE_URL="postgresql://usuario:clave@localhost:5432/intranet?schema=sorteos_test" npm run test:integration
 ```
 
