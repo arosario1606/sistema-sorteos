@@ -1,0 +1,19 @@
+# Servicio de sorteos de la intranet. Mismo estilo que intranet-api-auth.
+# Uso (siempre con el archivo de variables, para no mezclarlo con el .env de desarrollo):
+#   docker compose --env-file .env.docker up --build -d
+# El gateway lo busca en DOCKER_SERVER_IP:3060 (LOTTERY_SERVICE_PORT en lottery.gateway.routes.js).
+services:
+  intranet-lottery-backend:
+    container_name: intranet-lottery-backend
+    environment:
+      - TZ=${TZ:-America/Caracas}
+      - PORT=3000
+      - DATABASE_URL=${DATABASE_URL}
+      - SERVICES_SECRET_KEY=${SERVICES_SECRET_KEY}
+    ports:
+      - "3060:3000"
+    # En Linux permite llegar a un Postgres del propio servidor como host.docker.internal (Docker Desktop ya lo trae).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: always
+    build: .

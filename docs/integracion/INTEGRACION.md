@@ -40,7 +40,13 @@ Dependencia nueva en el frontend de la intranet: ninguna que no tenga ya (`@tans
    Las gerencias (`Department`) se crean solas con las que traigan los CSV de participantes y de cupos. Los permisos
    (`User_branch_permission`: `user_id` = `Users.id`, `user_email`, `id_sede`) se cargan aparte.
 3. **Variables del servicio:** `DATABASE_URL`, `PORT=3000`, `SERVICES_SECRET_KEY` (el MISMO valor que el gateway; no se sube al repo).
-4. **docker-compose de la intranet:** agregar el servicio con un puerto libre y poner ese puerto en `LOTTERY_SERVICE_PORT` del archivo de gateway.
+4. **Docker.** `backend/docker-compose.yml` sigue el estilo del de `intranet-api-auth` (puerto `3060:3000`, que debe coincidir con
+   `LOTTERY_SERVICE_PORT` del gateway). Copiar `backend/.env.docker.example` a `backend/.env.docker` (no se sube al repo), completar
+   `DATABASE_URL` y `SERVICES_SECRET_KEY` y ejecutar `docker compose --env-file .env.docker up --build -d` dentro de `backend/`.
+   El contenedor aplica las migraciones al arrancar, corre como usuario `node` y expone `/health`. Dentro de un contenedor `localhost`
+   es el propio contenedor: si PostgreSQL corre en la máquina anfitriona se usa `host.docker.internal` (ya mapeado en el compose).
+   Para probar sin tocar ninguna base real: `docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.docker up --build`
+   levanta además un PostgreSQL descartable (solo pruebas).
 5. **Registrar rutas** (si ya lo habías hecho antes de «Finalizar sorteo», repite el seed: agrega `/api/lottery/sorteos/finalize` y `/api/lottery/attendance/mark-all`, y vuelve a asignar las
    rutas hijas al grupo; el `INSERT ... ON CONFLICT DO NOTHING` del grupo es repetible): ejecutar `seed-rutas-sorteos.js` y asignar las rutas `/lottery-service` al grupo de permisos que corresponda
    desde el panel de administración. Sin esto el gateway responde 403.

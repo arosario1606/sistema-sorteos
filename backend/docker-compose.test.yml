@@ -1,0 +1,21 @@
+# SOLO PRUEBAS: agrega un Postgres desechable para probar la imagen sin tocar tu base de datos real.
+#   docker compose --env-file .env.docker.test -f docker-compose.yml -f docker-compose.test.yml up --build -d
+# Se borra con: docker compose -f docker-compose.yml -f docker-compose.test.yml down -v
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=sorteos
+      - POSTGRES_PASSWORD=sorteos_prueba
+      - POSTGRES_DB=intranet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sorteos -d intranet"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  intranet-lottery-backend:
+    environment:
+      - DATABASE_URL=postgresql://sorteos:sorteos_prueba@db:5432/intranet?schema=sorteos
+    depends_on:
+      db:
+        condition: service_healthy
