@@ -50,6 +50,8 @@ Dependencia nueva en el frontend de la intranet: ninguna que no tenga ya (`@tans
 - **Sin parámetros en el path.** El gateway compara el path exacto; por eso el id viaja en `?id=` o en el body. `npm test` lo verifica.
 - **Cada endpoint nuevo** va en `backend/src/routes/lottery.js` **y** en `seed-rutas-sorteos.js` (una prueba falla si difieren), y se vuelve a ejecutar el seed.
 - Los nombres de ruta (`route_path`, `route_name`) son únicos en toda la intranet: por eso el prefijo `/api/lottery` y «Sorteos - ».
+- **Subida de archivos por el gateway:** el archivo del gateway debe llevar `parseReqBody: !req.is("multipart/form-data")` (ya incluido en
+  `lottery.gateway.routes.js`). Sin eso, `express-http-proxy` corrompe el CSV y la carga falla con «Error interno del servidor».
 - El gateway redirige a `/` si la sesión no es válida (no responde 401): el cliente `lottery-api.js` lo detecta y cierra la sesión.
 
 ## Desarrollo local sin el gateway

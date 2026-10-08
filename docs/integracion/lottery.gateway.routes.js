@@ -28,6 +28,10 @@ router.use("/apiv1/lottery-service", checkAuth, async (req, res, next) => {
   }
 
   proxy(`http://${process.env.DOCKER_SERVER_IP}:${LOTTERY_SERVICE_PORT}/`, {
+    // Las subidas de archivos (CSV, multipart/form-data) deben pasar tal cual: con el valor por defecto
+    // express-http-proxy lee el cuerpo como texto y lo estropea (el servicio falla con "Unexpected end of form").
+    // El resto de peticiones (JSON) sigue con el comportamiento normal.
+    parseReqBody: !req.is("multipart/form-data"),
     proxyReqOptDecorator: (proxyReqOpts) => {
       proxyReqOpts.headers["x-auth-token"] = response.token;
       return proxyReqOpts;
