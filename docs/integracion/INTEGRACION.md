@@ -41,7 +41,8 @@ Dependencia nueva en el frontend de la intranet: ninguna que no tenga ya (`@tans
    (`User_branch_permission`: `user_id` = `Users.id`, `user_email`, `id_sede`) se cargan aparte.
 3. **Variables del servicio:** `DATABASE_URL`, `PORT=3000`, `SERVICES_SECRET_KEY` (el MISMO valor que el gateway; no se sube al repo).
 4. **docker-compose de la intranet:** agregar el servicio con un puerto libre y poner ese puerto en `LOTTERY_SERVICE_PORT` del archivo de gateway.
-5. **Registrar rutas:** ejecutar `seed-rutas-sorteos.js` y asignar las rutas `/lottery-service` al grupo de permisos que corresponda
+5. **Registrar rutas** (si ya lo habías hecho antes de «Finalizar sorteo», repite el seed: agrega `/api/lottery/sorteos/finalize`, y vuelve a asignar las
+   rutas hijas al grupo; el `INSERT ... ON CONFLICT DO NOTHING` del grupo es repetible): ejecutar `seed-rutas-sorteos.js` y asignar las rutas `/lottery-service` al grupo de permisos que corresponda
    desde el panel de administración. Sin esto el gateway responde 403.
 6. **Frontend:** copiar los archivos de la tabla y recompilar. Las pantallas llaman a `/apiv1/lottery-service/api/lottery/...`.
 

@@ -10,6 +10,11 @@ ver [`docs/integracion/INTEGRACION.md`](docs/integracion/INTEGRACION.md).
 2. Subir el **CSV de participantes** (RRHH) y el **CSV de cupos** por gerencia.
 3. **Listar asistencia:** marcar con un check quién asistió (se guarda al instante).
 4. **Ejecutar sorteo:** cada pulsación de «Sortear» saca un ganador (cuenta regresiva de 3,5 s), hasta que no queden elegibles.
+   Todos los ganadores se ven a la vez (sin scroll) y «Pantalla completa» deja solo el sorteo para proyectarlo.
+5. **Finalizar sorteo:** botón en «Ejecutar sorteo». **Borra de forma definitiva** el sorteo, sus participantes, ganadores, cupos y
+   las gerencias que ningún otro sorteo use (los empleados se conservan). Pide escribir el nombre del sorteo y ofrece antes
+   «Descargar ganadores (CSV)» (`ganadores sorteo <nombre>.csv`): es la única copia que queda. Se puede finalizar aunque no se
+   hayan sacado todos los ganadores, y sirve también para eliminar un sorteo creado por error.
 
 Elegible = `participa = SI` + asistió + no ha ganado + su gerencia aún tiene cupo en el grupo.
 Los cupos son por gerencia dentro del grupo (las sedes del grupo comparten gerencias).
@@ -33,7 +38,7 @@ Ejemplos con datos ficticios en `docs/ejemplos/`.
 | `Sede` | Copia de `intranet_api_auth_manager."Locations"` (`npm run sync:sedes`). `active = false` oculta una sede al crear sorteos nuevos sin perder el historial. |
 | `Employee` | Copia de `intranet_employees_db."Employee"` (`npm run sync:employees`) + cédulas nuevas que lleguen en los CSV. Se actualiza a mano cuando haga falta. |
 | `User_branch_permission` | Propia: `user_id` (= `Users.id` de la intranet), `user_email` (informativo) e `id_sede`. |
-| `Department` | Propia. Se llena sola con las gerencias que vengan en los CSV; no se siembra ni se copia de `Area` (sus nombres no coinciden con los del CSV de RRHH). |
+| `Department` | Propia. Se llena sola con las gerencias que vengan en los CSV (no se copia de `Area`: sus nombres no coinciden con los del CSV de RRHH) y se borra al finalizar un sorteo si ningún otro sorteo la usa. |
 
 ## Puesta en marcha local
 
@@ -67,7 +72,7 @@ No se usa `db push`.
 
 ```bash
 cd backend
-npm test                      # unitarias (sin base de datos)
+npm test                      # unitarias (sin base de datos); en frontend/ también hay `npm test` (exportación del CSV)
 
 # Integración: usan esquemas DESCARTABLES (sorteos_test, sorteos_test_auth, sorteos_test_employees) y los limpian solos.
 # Nunca tocan sorteos ni los esquemas reales de la intranet; por eso exigen ?schema=sorteos_test
@@ -75,7 +80,8 @@ DATABASE_URL="postgresql://usuario:clave@localhost:5432/intranet?schema=sorteos_
 ```
 
 Cubren: autenticación (token ausente/falso/vencido/`alg:none`), permisos por sede, sedes inactivas, flujo completo del sorteo
-(asistencia, `participa = NO`, cupos, gerencias nuevas desde el CSV, nadie gana dos veces), **ejecuciones simultáneas**, cargas simultáneas con una misma gerencia nueva y las sincronizaciones desde la intranet.
+(asistencia, `participa = NO`, cupos, gerencias nuevas desde el CSV, nadie gana dos veces), **ejecuciones simultáneas**, cargas simultáneas con una misma gerencia nueva y las sincronizaciones desde la intranet, y **finalizar sorteo** (borra todo lo del sorteo, conserva lo compartido con otro sorteo,
+revierte si algo falla a mitad y convive con un sorteo en curso).
 
 ## Guía de prueba manual
 
@@ -88,7 +94,10 @@ Cubren: autenticación (token ausente/falso/vencido/`alg:none`), permisos por se
    Recargar la página y volver a abrir el sorteo: las marcas deben seguir ahí.
 4. **Ejecutar sorteo:** elegir el sorteo y pulsar «Sortear ganador #1». Tras el contador aparece el ganador y
    se agrega a la lista con su número de orden. Repetir hasta que el botón se deshabilite y aparezca
-   «Sorteo finalizado» (con todos asistiendo salen 26 ganadores). Nadie se repite y ninguna gerencia supera su cupo.
+   «Ya no quedan participantes elegibles» (con todos asistiendo salen 26 ganadores). Nadie se repite y ninguna gerencia supera su cupo.
+   Probar «Pantalla completa»: todos los ganadores deben verse a la vez, sin bajar con el mouse (Esc para salir).
+5. **Finalizar sorteo:** pulsar «Finalizar sorteo», «Descargar ganadores (CSV)», escribir el nombre del sorteo y confirmar. Tras la
+   animación el sorteo ya no aparece en ningún selector, y en la base no queda ninguna fila suya.
 
 Para repetir el sorteo desde cero:
 

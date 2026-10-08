@@ -15,6 +15,7 @@ const children = [
   { name: 'Sorteos - Listar sorteos', path: '/api/lottery/sorteos' },
   { name: 'Sorteos - Crear sorteo', path: '/api/lottery/sorteos/create' },
   { name: 'Sorteos - Detalle de sorteo', path: '/api/lottery/sorteos/detail' },
+  { name: 'Sorteos - Finalizar sorteo', path: '/api/lottery/sorteos/finalize' },
   { name: 'Sorteos - Cargar participantes', path: '/api/lottery/participants/upload' },
   { name: 'Sorteos - Cargar cupos', path: '/api/lottery/quotas/upload' },
   { name: 'Sorteos - Listar asistencia', path: '/api/lottery/attendance/list' },

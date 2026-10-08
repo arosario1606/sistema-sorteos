@@ -13,6 +13,10 @@ export const ui = {
     'rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-all duration-300 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
   btnAccent:
     'rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-all duration-300 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+  btnDanger:
+    'rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-all duration-300 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+  btnOutline:
+    'rounded-md border border-primary bg-white px-4 py-2 text-sm font-medium text-primary transition-all duration-300 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
   toolbar: 'my-3 flex flex-wrap items-center gap-3',
   stats: 'my-3 flex flex-wrap gap-6 text-sm text-gray-600',
   tableWrap: 'overflow-x-auto rounded-md border border-gray-200',

@@ -6,6 +6,7 @@ import { getAccessibleSorteo } from '../services/sorteoAccess.js';
 import { importParticipants } from '../services/importParticipants.js';
 import { importQuotas } from '../services/importQuotas.js';
 import { drawNextWinner, getDrawStatus } from '../services/draw.js';
+import { finalizeSorteo } from '../services/finalize.js';
 
 // IMPORTANTE: el gateway de la intranet autoriza por ruta EXACTA (Routes_backend_child.route_path),
 // así que no se usan parámetros en el path: el id del sorteo viaja en `?id=` o en el body.
@@ -70,6 +71,14 @@ router.post('/sorteos/create', asyncHandler(async (req, res) => {
     });
   });
   res.status(201).json(sorteo);
+}));
+
+// Finalizar: borra el sorteo y todos sus datos (irreversible). Lo puede hacer quien tenga acceso al sorteo.
+router.post('/sorteos/finalize', asyncHandler(async (req, res) => {
+  const sorteo = await getAccessibleSorteo(parseId(req.body?.idSorteos, 'idSorteos'), req.user);
+  const result = await finalizeSorteo(sorteo.idSorteos);
+  console.log(`Sorteo ${result.idSorteos} finalizado por ${req.user.email}: ${result.participants} participantes y ${result.winners} ganadores borrados`);
+  res.json(result);
 }));
 
 router.get('/sorteos/detail', asyncHandler(async (req, res) => {
