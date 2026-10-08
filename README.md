@@ -8,7 +8,8 @@ ver [`docs/integracion/INTEGRACION.md`](docs/integracion/INTEGRACION.md).
 
 1. **Registrar sorteo:** fecha, nombre y sedes que forman el grupo del sorteo (solo sedes activas con permiso del usuario).
 2. Subir el **CSV de participantes** (RRHH) y el **CSV de cupos** por gerencia.
-3. **Listar asistencia:** marcar con un check quién asistió (se guarda al instante).
+3. **Listar asistencia:** marcar con un check quién asistió (se guarda al instante). El botón «Marcar a todos como asistentes»
+   (con confirmación) marca de una vez a todos los participantes que faltan; avisa si el sorteo ya tiene ganadores.
 4. **Ejecutar sorteo:** cada pulsación de «Sortear» saca un ganador (cuenta regresiva de 3,5 s), hasta que no queden elegibles.
    Todos los ganadores se ven a la vez (sin scroll) y «Pantalla completa» deja solo el sorteo para proyectarlo.
 5. **Finalizar sorteo:** botón en «Ejecutar sorteo». **Borra de forma definitiva** el sorteo, sus participantes, ganadores, cupos y
@@ -91,7 +92,8 @@ revierte si algo falla a mitad y convive con un sorteo en curso).
    Probar también un CSV con una gerencia inventada: se crea, el aviso la lista, y como no tiene cupo sus participantes no ganan;
    una fila sin gerencia aparece en «filas con error» sin impedir cargar el resto.
 3. **Listar asistencia:** elegir el sorteo (aparecen los 55 con `participa = SI`), buscar por nombre, marcar varios checks.
-   Recargar la página y volver a abrir el sorteo: las marcas deben seguir ahí.
+   Recargar la página y volver a abrir el sorteo: las marcas deben seguir ahí. Probar «Marcar a todos como asistentes»: «Cancelar» no
+   cambia nada; confirmar marca a los pendientes y el botón queda deshabilitado.
 4. **Ejecutar sorteo:** elegir el sorteo y pulsar «Sortear ganador #1». Tras el contador aparece el ganador y
    se agrega a la lista con su número de orden. Repetir hasta que el botón se deshabilite y aparezca
    «Ya no quedan participantes elegibles» (con todos asistiendo salen 26 ganadores). Nadie se repite y ninguna gerencia supera su cupo.

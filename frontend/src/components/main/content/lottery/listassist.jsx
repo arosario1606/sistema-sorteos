@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from './lottery-api'
+import MarkAllModal from './mark-all-modal'
 import SorteoSelect from './sorteo-select'
 import { ui } from './ui'
 
@@ -10,10 +11,13 @@ const ListAssist = () => {
   const [search, setSearch] = useState('')
   const [pending, setPending] = useState(new Set())
   const [error, setError] = useState('')
+  const [confirmingAll, setConfirmingAll] = useState(false)
+  const [notice, setNotice] = useState('')
 
   const selectSorteo = (id) => {
     setRows([])
     setError('')
+    setNotice('')
     setIdSorteos(id)
   }
 
@@ -29,6 +33,7 @@ const ListAssist = () => {
   }, [rows, search])
 
   const attendedCount = rows.filter((r) => r.attended).length
+  const pendingCount = rows.length - attendedCount
 
   const setAttended = (id, attended) =>
     setRows((rs) => rs.map((r) => (r.idParticipant === id ? { ...r, attended } : r)))
@@ -53,6 +58,17 @@ const ListAssist = () => {
     }
   }
 
+  // El servidor marca a todos de una vez; después se vuelve a leer la lista para mostrar el estado real.
+  const markedAll = async (marked) => {
+    setConfirmingAll(false)
+    setNotice(marked === 1 ? 'Se marcó 1 participante como asistente.' : `Se marcaron ${marked} participantes como asistentes.`)
+    try {
+      setRows((await api.asistencia(idSorteos)).rows)
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
   return (
     <div className={ui.card}>
       <h2 className={ui.title}>Listado de asistencia</h2>
@@ -65,8 +81,12 @@ const ListAssist = () => {
           onChange={(e) => setSearch(e.target.value)}
           disabled={!idSorteos}
         />
+        <button className={ui.btnOutline} onClick={() => setConfirmingAll(true)} disabled={!idSorteos || pendingCount === 0}>
+          Marcar a todos como asistentes
+        </button>
       </SorteoSelect>
       {error && <p className={ui.error}>{error}</p>}
+      {notice && <p className={ui.success} role="status">{notice}</p>}
       {idSorteos && (
         <>
           <div className={ui.stats}>
@@ -110,6 +130,15 @@ const ListAssist = () => {
             </table>
           </div>
         </>
+      )}
+      {confirmingAll && (
+        <MarkAllModal
+          idSorteos={idSorteos}
+          total={rows.length}
+          pending={pendingCount}
+          onClose={() => setConfirmingAll(false)}
+          onDone={markedAll}
+        />
       )}
     </div>
   )

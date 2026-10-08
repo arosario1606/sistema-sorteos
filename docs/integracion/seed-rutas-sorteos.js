@@ -20,6 +20,7 @@ const children = [
   { name: 'Sorteos - Cargar cupos', path: '/api/lottery/quotas/upload' },
   { name: 'Sorteos - Listar asistencia', path: '/api/lottery/attendance/list' },
   { name: 'Sorteos - Marcar asistencia', path: '/api/lottery/attendance/mark' },
+  { name: 'Sorteos - Marcar asistencia de todos', path: '/api/lottery/attendance/mark-all' },
   { name: 'Sorteos - Ejecutar sorteo', path: '/api/lottery/draw/execute' },
   { name: 'Sorteos - Ver ganadores', path: '/api/lottery/draw/winners' },
 ];

@@ -54,6 +54,7 @@ export const api = {
   marcarAsistencia: (idSorteos, idParticipant, attended) =>
     request('/attendance/mark', json('POST', { idSorteos, idParticipant, attended })),
   finalizar: (idSorteos) => request('/sorteos/finalize', json('POST', { idSorteos })),
+  marcarTodos: (idSorteos) => request('/attendance/mark-all', json('POST', { idSorteos })),
   ejecutar: (id) => request(`/draw/execute?id=${id}`, { method: 'POST' }),
   ganadores: (id) => request(`/draw/winners?id=${id}`),
 }

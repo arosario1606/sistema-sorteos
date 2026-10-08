@@ -173,6 +173,16 @@ router.post('/attendance/mark', asyncHandler(async (req, res) => {
   res.json({ idParticipant: participantId, attended });
 }));
 
+// Marca como asistentes a todos los participantes del sorteo que participan (los que ya lo estaban no cambian).
+router.post('/attendance/mark-all', asyncHandler(async (req, res) => {
+  const sorteo = await getAccessibleSorteo(parseId(req.body?.idSorteos, 'idSorteos'), req.user);
+  const { count } = await prisma.participant.updateMany({
+    where: { idSorteos: sorteo.idSorteos, participate: true, attended: false },
+    data: { attended: true, updatedBy: req.user.email },
+  });
+  res.json({ marked: count });
+}));
+
 // Ejecutar sorteo: saca un ganador
 router.post('/draw/execute', asyncHandler(async (req, res) => {
   const sorteo = await getAccessibleSorteo(parseId(req.query.id), req.user);
