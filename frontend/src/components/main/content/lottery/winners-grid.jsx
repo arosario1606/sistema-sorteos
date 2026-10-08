@@ -2,18 +2,23 @@ import { ui } from './ui'
 
 const MIN_ROWS = 10 // ganadores por columna
 const MAX_COLUMNS = 6
+const COLUMN_GAP_REM = 0.75
 
 // Filas por columna: 10 normalmente; si hay más de 60 ganadores crece para no pasar de 6 columnas.
 const rowsPerColumn = (count) => Math.max(MIN_ROWS, Math.ceil(count / MAX_COLUMNS))
 
 // Todos los ganadores a la vez, sin scroll: columnas que se llenan de arriba abajo y luego hacia la derecha,
 // en orden de salida. Solo número, nombre y gerencia (la cédula no se muestra en pantalla grande).
+// Las columnas tienen un ancho propio (no se reparten toda la pantalla) y el bloque va centrado: una sola columna
+// queda al centro y varias se agrupan en el medio.
 export default function WinnersGrid({ winners, latestOrder, presenting }) {
   const rows = rowsPerColumn(winners.length)
   const columns = Math.ceil(winners.length / rows)
   // En pantalla completa el texto crece con el alto disponible. Con 4 o más columnas cada una es angosta y los
   // nombres largos pasan a dos líneas, así que la letra se reduce para que ambas líneas y la gerencia quepan.
   const lineFactor = columns <= 3 ? 2.4 : 3.3
+  // Ancho de columna: hasta 22em (crece con la letra) o, si no caben, el reparto equitativo del ancho disponible.
+  const columnWidth = `min(22em, calc((100% - ${(columns - 1) * COLUMN_GAP_REM}rem) / ${columns}))`
   const fontSize = presenting ? `clamp(0.85rem, calc((100vh - 15rem) / ${rows} / ${lineFactor}), 2rem)` : undefined
 
   if (winners.length === 0) {
@@ -23,10 +28,13 @@ export default function WinnersGrid({ winners, latestOrder, presenting }) {
   return (
     <ol
       aria-label="Ganadores"
-      className={`grid gap-x-3 gap-y-1 ${presenting ? 'h-full' : ''}`}
+      className={`grid ${presenting ? 'h-full' : ''}`}
       style={{
         gridAutoFlow: 'column',
-        gridAutoColumns: 'minmax(0, 1fr)',
+        gridAutoColumns: columnWidth,
+        justifyContent: 'center',
+        columnGap: `${COLUMN_GAP_REM}rem`,
+        rowGap: '0.25rem',
         gridTemplateRows: `repeat(${rows}, minmax(${presenting ? 0 : '2.75rem'}, 1fr))`,
         fontSize,
       }}

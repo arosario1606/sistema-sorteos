@@ -152,7 +152,7 @@ const ExecLottery = () => {
 
       {idSorteos && (
         <>
-          <h3 className={presenting ? 'text-lg font-semibold text-gray-800' : ui.subtitle}>Ganadores ({winners.length})</h3>
+          <h3 className={`text-center ${presenting ? 'text-lg font-semibold text-gray-800' : ui.subtitle}`}>Ganadores ({winners.length})</h3>
           <div className={presenting ? 'min-h-0 flex-1' : ''}>
             <WinnersGrid winners={winners} latestOrder={latest?.winningOrder} presenting={presenting} />
           </div>
