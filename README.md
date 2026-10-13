@@ -41,6 +41,22 @@ Ejemplos con datos ficticios en `docs/ejemplos/`.
 | `User_branch_permission` | Propia: `user_id` (= `Users.id` de la intranet), `user_email` (informativo) e `id_sede`. |
 | `Department` | Propia. Se llena sola con las gerencias que vengan en los CSV (no se copia de `Area`: sus nombres no coinciden con los del CSV de RRHH) y se borra al finalizar un sorteo si ningún otro sorteo la usa. |
 
+## Documentación y despliegue
+
+| Documento | Contenido |
+|---|---|
+| [`docs/documentos/Documentacion_Proyecto_Sorteos.docx`](docs/documentos/Documentacion_Proyecto_Sorteos.docx) | Qué se construyó, decisiones y cambios, en orden. |
+| [`docs/documentos/Manual_Usuario_Sorteos.docx`](docs/documentos/Manual_Usuario_Sorteos.docx) | Manual de usuario paso a paso. |
+| [`docs/integracion/INTEGRACION.md`](docs/integracion/INTEGRACION.md) | Cómo encaja el módulo en la intranet (gateway, rutas, frontend). |
+| [`docs/integracion/ENTREGA.md`](docs/integracion/ENTREGA.md) | Lista de despliegue para quien administra el servidor. |
+
+Contenedor del backend (desde `backend/`, con `.env.docker` creado a partir de `.env.docker.example`):
+
+```bash
+docker compose --env-file .env.docker up --build -d    # puerto 3060; las migraciones se aplican al arrancar
+curl http://localhost:3060/health                       # {"status":"ok"}
+```
+
 ## Puesta en marcha local
 
 Requisitos: Node 22 y un PostgreSQL con la base `intranet` (con los esquemas `intranet_api_auth_manager` e `intranet_employees_db` si se usarán los `sync`).
