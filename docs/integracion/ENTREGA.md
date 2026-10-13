@@ -12,7 +12,7 @@ Lista de comprobación para desplegar el módulo de sorteos. El detalle técnico
 | Clave del rol `sorteos_app` | `DATABASE_URL` | La define quien ejecute el paso 2 |
 | `SERVICES_SECRET_KEY` de producción | Verificar `x-auth-token` | El MISMO valor de `intranet-api-auth/.env`. No se sube al repo |
 | Puerto libre del servidor para el módulo | Publicar el contenedor | Por defecto 3060; debe coincidir con `LOTTERY_SERVICE_PORT` en el gateway |
-| Quién carga los permisos por sede | `User_branch_permission` | **Decisión pendiente** (no hay pantalla de administración; ver paso 6) |
+| Quién carga los permisos por sede | `User_branch_permission` | Se cargan por SQL manual (paso 6); el administrador define quién lo ejecuta |
 
 ## 2. Base de datos: rol propio con permisos mínimos
 
@@ -62,7 +62,7 @@ Desactivar las sedes que no participan en sorteos:
 3. Ejecutar una vez `docs/integracion/seed-rutas-sorteos.js` y asignar las rutas `/lottery-service` al grupo de permisos correcto
    desde el panel de administración. Sin esto el gateway responde 403.
 
-## 6. Permisos por sede (decisión pendiente)
+## 6. Permisos por sede (por SQL manual)
 
 Cada usuario necesita filas en `sorteos."User_branch_permission"`; sin ellas el módulo carga pero no ofrece ninguna sede.
 Hoy se cargan por SQL (ejemplo; `user_id` es el `Users.id` de la intranet):
@@ -73,8 +73,9 @@ VALUES (<id-usuario>, '<correo>', <id-sede>, '<quien-lo-carga>')
 ON CONFLICT DO NOTHING;
 ```
 
-Hay que acordar quién mantiene estos permisos cuando cambie el personal. Si se quiere una pantalla de administración,
-es trabajo nuevo que no está en este módulo.
+Decisión tomada: se mantienen por SQL manual, sin pantalla de administración. Conviene acordar quién ejecuta estos cambios
+cuando el personal cambie. Para quitar el acceso a una sede:
+`DELETE FROM sorteos."User_branch_permission" WHERE user_id = <id-usuario> AND id_sede = <id-sede>;`
 
 ## 7. Frontend de la intranet
 
