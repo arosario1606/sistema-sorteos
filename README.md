@@ -45,8 +45,6 @@ Ejemplos con datos ficticios en `docs/ejemplos/`.
 
 | Documento | Contenido |
 |---|---|
-| [`docs/documentos/Documentacion_Proyecto_Sorteos.docx`](docs/documentos/Documentacion_Proyecto_Sorteos.docx) | Qué se construyó, decisiones y cambios, en orden. |
-| [`docs/documentos/Manual_Usuario_Sorteos.docx`](docs/documentos/Manual_Usuario_Sorteos.docx) | Manual de usuario paso a paso. |
 | [`docs/integracion/INTEGRACION.md`](docs/integracion/INTEGRACION.md) | Cómo encaja el módulo en la intranet (gateway, rutas, frontend). |
 | [`docs/integracion/ENTREGA.md`](docs/integracion/ENTREGA.md) | Lista de despliegue para quien administra el servidor. |
 

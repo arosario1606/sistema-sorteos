@@ -1,10 +1,10 @@
 import { ui } from './ui'
 
-const MIN_ROWS = 10 // ganadores por columna
+const MIN_ROWS = 8 // ganadores por columna
 const MAX_COLUMNS = 6
 const COLUMN_GAP_REM = 0.75
 
-// Filas por columna: 10 normalmente; si hay más de 60 ganadores crece para no pasar de 6 columnas.
+// Filas por columna: 8 normalmente; si hay más de 48 ganadores crece para no pasar de 6 columnas.
 const rowsPerColumn = (count) => Math.max(MIN_ROWS, Math.ceil(count / MAX_COLUMNS))
 
 // Todos los ganadores a la vez, sin scroll: columnas que se llenan de arriba abajo y luego hacia la derecha,
