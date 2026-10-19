@@ -119,7 +119,16 @@ test('carga de CSV: cupos, participantes, gerencias nuevas y empleados nuevos', 
   const quotas = await api.upload(`/quotas/upload?id=${id}`, tkAdmin(), 'GERENCIA A;2\nGERENCIA B;1\nOTRA;3\n;5\nGERENCIA B;9\nX;abc\n');
   assert.equal(quotas.body.saved, 3);
   assert.deepEqual(quotas.body.departmentsCreated, ['GERENCIA A', 'GERENCIA B', 'OTRA'], 'en una base vacía se crean las gerencias del CSV');
-  assert.deepEqual(quotas.body.errors.map((e) => e.reason), ['Falta la gerencia', 'Gerencia repetida: "GERENCIA B"', 'Cantidad inválida: "abc"']);
+  assert.deepEqual(quotas.body.errors.map((e) => e.reason), [
+    'Falta la gerencia: esta línea solo trae "5"',
+    'Gerencia repetida "GERENCIA B": ya aparece en la línea 2',
+    'Cantidad inválida "abc" para la gerencia "X": use un número entero, sin decimales ni signo',
+  ]);
+  assert.deepEqual(quotas.body.errors.map((e) => e.line), [4, 5, 6], 'cada aviso trae el número de línea del archivo');
+
+  const empty = await api.upload(`/quotas/upload?id=${id}`, tkAdmin(), 'gerencia;cantidad\n');
+  assert.equal(empty.status, 400);
+  assert.match(empty.body.error, /no tiene filas con datos/);
 
   const res = await api.upload(`/participants/upload?id=${id}`, tkAdmin(), `${PARTICIPANTS}\n1009;SANZ;EVA;ANALISTA;;SI`);
   assert.equal(res.status, 200);

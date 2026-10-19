@@ -88,6 +88,7 @@ const ExecLottery = () => {
     setLatest(null)
     setSpinning(true)
     const start = Date.now()
+    setTimeLeft(SPIN_MS)
     timer.current = setInterval(() => {
       setTimeLeft(Math.max(0, SPIN_MS - (Date.now() - start)))
       if (pool.length) setShown(pool[Math.floor(Math.random() * pool.length)])
@@ -140,7 +141,7 @@ const ExecLottery = () => {
         </>
       )}
 
-      <DrawStage spinning={spinning} clock={(timeLeft / 1000).toFixed(1)} shown={shown} latest={latest} />
+      <DrawStage spinning={spinning} clock={Math.ceil(timeLeft / 1000)} shown={shown} latest={latest} />
       {finished && !spinning && (
         <p className={ui.success}>
           {winners.length > 0

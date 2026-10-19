@@ -29,6 +29,9 @@ Una gerencia sin cupo cargado no tiene ganadores.
   mayúsculas, tildes ni espacios y, **si no existe, se crea** con el nombre del CSV (el resultado de la carga lista las nuevas para
   detectar errores de escritura). Las cédulas que no estén en `Employee` se registran como empleados nuevos.
 - **Cupos**: `gerencia;cantidad` (las gerencias nuevas también se crean aquí).
+  Cada línea con problema se lista con su número y el motivo (falta la gerencia, falta la cantidad, cantidad inválida,
+  gerencia repetida, más de dos columnas o línea vacía entre datos); el resto del archivo sí se carga. Un archivo sin
+  ninguna fila con datos se rechaza con un aviso.
 
 Ejemplos con datos ficticios en `docs/ejemplos/`.
 

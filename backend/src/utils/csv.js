@@ -8,13 +8,25 @@ function decode(buffer) {
   return text.replace(/^﻿/, '');
 }
 
+// El separador se decide con las primeras líneas (no solo con la primera: una primera línea sin separadores, como una
+// gerencia sin cantidad, haría leer mal todo el archivo). Se ignora el texto entre comillas y, si hay empate, gana ';'.
 function detectSeparator(text) {
-  const firstLine = text.split(/\r?\n/).find((l) => l.trim() !== '') ?? '';
-  return (firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length ? ';' : ',';
+  const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '').slice(0, 20);
+  let semicolons = 0;
+  let commas = 0;
+  for (const line of lines) {
+    const bare = line.replace(/"[^"]*"/g, '');
+    semicolons += (bare.match(/;/g) || []).length;
+    commas += (bare.match(/,/g) || []).length;
+  }
+  return semicolons > 0 && semicolons >= commas ? ';' : ',';
 }
 
 // Devuelve las filas como arreglos de celdas (sin encabezado), cada una con su número de línea.
-export async function readCsvRows(buffer) {
+// Por defecto se omiten las líneas vacías. Con { keepInteriorBlanks: true } se conservan (marcadas con `blank: true`)
+// las que quedan ENTRE filas con datos, para poder avisar de ellas; las vacías del final del archivo se ignoran siempre,
+// porque los programas de hoja de cálculo suelen dejarlas.
+export async function readCsvRows(buffer, { keepInteriorBlanks = false } = {}) {
   const text = decode(buffer);
   const separator = detectSeparator(text);
 
@@ -27,7 +39,10 @@ export async function readCsvRows(buffer) {
       .on('error', reject);
   });
 
-  return rows
-    .map((cells, i) => ({ line: i + 1, cells }))
-    .filter(({ cells }) => cells.some((c) => c !== ''));
+  const numbered = rows.map((cells, i) => ({ line: i + 1, cells, blank: cells.every((c) => c === '') }));
+  const lastWithData = numbered.map((r) => r.blank).lastIndexOf(false);
+
+  return numbered
+    .filter((r, i) => !r.blank || (keepInteriorBlanks && i < lastWithData))
+    .map(({ blank, ...row }) => (keepInteriorBlanks ? { ...row, blank } : row));
 }
