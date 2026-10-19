@@ -5,6 +5,7 @@ import { api } from './lottery-api'
 import SorteoSelect from './sorteo-select'
 import { ui } from './ui'
 import WinnersGrid from './winners-grid'
+import { countdownNumber } from './countdown'
 
 const SPIN_MS = 3500
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -141,7 +142,7 @@ const ExecLottery = () => {
         </>
       )}
 
-      <DrawStage spinning={spinning} clock={Math.ceil(timeLeft / 1000)} shown={shown} latest={latest} />
+      <DrawStage spinning={spinning} clock={countdownNumber(timeLeft, SPIN_MS)} shown={shown} latest={latest} />
       {finished && !spinning && (
         <p className={ui.success}>
           {winners.length > 0
