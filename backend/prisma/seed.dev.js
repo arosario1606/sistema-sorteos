@@ -1,8 +1,10 @@
 // Datos de PRUEBA locales (no usar en la base real): permisos de un usuario de desarrollo sobre las sedes activas.
 // Las gerencias NO se siembran: se crean solas al cargar los CSV de participantes o de cupos.
-// Requisito: haber corrido antes `npm run sync:sedes` (las sedes vienen de Locations en la intranet).
+// Requisito: las vistas de la intranet (docs/integracion/vistas-sorteos.sql); las sedes se leen de Locations.
+// En la intranet real estos permisos se asignan desde la pantalla «Permisos por Sedes».
 import 'dotenv/config';
 import prisma from '../src/config/prisma.js';
+import { listSedes } from '../src/services/sedes.js';
 
 const userId = Number(process.env.DEV_USER_ID);
 const userEmail = process.env.DEV_USER_EMAIL;
@@ -12,13 +14,13 @@ if (!Number.isInteger(userId) || !userEmail) {
 }
 
 try {
-  const sedes = await prisma.sede.findMany({ where: { active: true } });
-  if (sedes.length === 0) throw new Error('No hay sedes: ejecute primero `npm run sync:sedes`');
+  const sedes = (await listSedes()).filter((s) => s.active);
+  if (sedes.length === 0) throw new Error('No hay sedes activas: revise las vistas de la intranet (vistas-sorteos.sql)');
   for (const s of sedes) {
     await prisma.userBranchPermission.upsert({
       where: { userId_idSede: { userId, idSede: s.idSede } },
-      create: { userId, userEmail, idSede: s.idSede, createdBy: 'seed' },
-      update: { userEmail },
+      create: { userId, idSede: s.idSede, createdBy: 'seed' },
+      update: {},
     });
   }
   console.log(`Seed de desarrollo listo: permisos sobre ${sedes.length} sedes para ${userEmail}`);

@@ -1,10 +1,10 @@
 // Sincroniza datos de la intranet hacia las tablas de este módulo (misma base de datos, otro esquema).
-// Uso: npm run sync:sedes | npm run sync:employees
+// Uso: npm run sync:employees (las sedes y los usuarios ya no se copian: se leen de las vistas de la intranet)
 import 'dotenv/config';
 import { readFile } from 'node:fs/promises';
 import prisma from '../src/config/prisma.js';
 
-const JOBS = { sedes: 'sedes.sql', employees: 'employees.sql' };
+const JOBS = { employees: 'employees.sql' };
 
 // Los nombres de esquema no se pueden parametrizar: se validan antes de interpolarlos.
 function schemaName(envVar, fallback) {

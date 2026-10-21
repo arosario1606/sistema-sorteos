@@ -1,6 +1,6 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { client, prisma, resetDb, startServer, token } from './helpers.js';
+import { client, dropIntranetStub, loadIntranetStub, prisma, resetDb, startServer, token } from './helpers.js';
 
 const ADMIN = { id: 10, email: 'admin@example.com' }; // sedes 1 y 2
 const OTHER = { id: 11, email: 'otro@example.com' }; // solo la sede 4
@@ -11,20 +11,21 @@ const tk = () => token(ADMIN);
 
 before(async () => {
   await resetDb();
+  await loadIntranetStub();
   let url;
   ({ server, url } = await startServer());
   api = client(url);
-  await prisma.sede.createMany({ data: [1, 2, 4].map((idSede) => ({ idSede, name: `Sede ${idSede}` })) });
   await prisma.userBranchPermission.createMany({
     data: [
-      ...[1, 2].map((idSede) => ({ userId: ADMIN.id, userEmail: ADMIN.email, idSede, createdBy: 'test' })),
-      { userId: OTHER.id, userEmail: OTHER.email, idSede: 4, createdBy: 'test' },
+      ...[1, 2].map((idSede) => ({ userId: ADMIN.id, idSede, createdBy: 'test' })),
+      { userId: OTHER.id, idSede: 4, createdBy: 'test' },
     ],
   });
 });
 
 after(async () => {
   server.close();
+  await dropIntranetStub();
   await prisma.$disconnect();
 });
 

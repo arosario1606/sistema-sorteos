@@ -25,31 +25,28 @@ model Employee {
   @@map("Employee")
 }
 
-// 2. Sede: sedes elegibles para sorteos. idSede = id de Locations en la intranet.
-//    `active = false` las oculta al crear sorteos nuevos sin perder el historial.
+// 2. Sede: configuración propia de las sedes. Ya NO es una copia de Locations: el nombre y si la sede está
+//    activa en la intranet se leen en vivo de la vista v_sede (ver docs/integracion/vistas-sorteos.sql).
+//    Aquí solo queda la decisión de este módulo: `active = false` oculta una sede al crear sorteos nuevos
+//    (y al asignarla a usuarios) sin perder el historial. Una sede sin fila cuenta como activa.
+//    Sin claves foráneas: la fila puede no existir y la sede puede desaparecer de Locations.
 model Sede {
   idSede    Int      @id @map("id_sede")
-  name      String   @db.VarChar(150)
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
-
-  userPermissions    UserBranchPermission[]
-  branchGroupDetails BranchGroupDetail[]
 
   @@map("Sede")
 }
 
 // 3. User_branch_permission: sedes sobre las que un usuario puede crear sorteos.
-//    userId = Users.id de la intranet (viene en el token); userEmail es solo informativo.
+//    userId = Users.id de la intranet (viene en el token); el nombre y el correo se leen de la vista v_users.
+//    Se administra desde la pantalla «Permisos por Sedes» (createdBy = correo de quien lo asignó).
 model UserBranchPermission {
   userId    Int      @map("user_id")
-  userEmail String   @map("user_email") @db.VarChar(150)
   idSede    Int      @map("id_sede")
   createdBy String   @map("created_by") @db.VarChar(100)
   createdAt DateTime @default(now()) @map("created_at")
-
-  sede Sede @relation(fields: [idSede], references: [idSede], onDelete: Cascade)
 
   @@id([userId, idSede])
   @@map("User_branch_permission")
@@ -78,7 +75,6 @@ model BranchGroupDetail {
   createdAt DateTime @default(now()) @map("created_at")
 
   branchGroup BranchGroup @relation(fields: [groupId], references: [groupId], onDelete: Cascade)
-  sede        Sede        @relation(fields: [idSede], references: [idSede], onDelete: Cascade)
 
   @@id([groupId, idSede])
   @@map("Branch_group_detail")

@@ -4,6 +4,7 @@ const LINKS = [
   { to: '/lotteryreg', label: 'Registrar sorteo' },
   { to: '/listassist', label: 'Listar asistencia' },
   { to: '/execlottery', label: 'Ejecutar sorteo' },
+  { to: '/lotteryperm', label: 'Permisos por Sedes' },
 ]
 
 // SOLO DESARROLLO: simula el layout de la intranet (src/routes/_content.jsx + Content).

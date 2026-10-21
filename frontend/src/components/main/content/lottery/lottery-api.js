@@ -57,6 +57,11 @@ export const api = {
   marcarTodos: (idSorteos) => request('/attendance/mark-all', json('POST', { idSorteos })),
   ejecutar: (id) => request(`/draw/execute?id=${id}`, { method: 'POST' }),
   ganadores: (id) => request(`/draw/winners?id=${id}`),
+  // «Permisos por Sedes» (solo el grupo ADMINISTRADOR tiene estas rutas en el gateway)
+  buscarUsuarios: (q) => request(`/permisos/usuarios?q=${encodeURIComponent(q)}`),
+  sedesIntranet: () => request('/permisos/sedes'),
+  permisosDeUsuario: (id) => request(`/permisos/usuario?id=${id}`),
+  guardarPermisos: (userId, sedeIds) => request('/permisos/usuario/guardar', json('POST', { userId, sedeIds })),
 }
 
 export const formatDate = (iso) =>

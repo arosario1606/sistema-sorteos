@@ -1,7 +1,7 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import jwt from 'jsonwebtoken';
-import { SECRET, client, prisma, resetDb, startServer, token } from './helpers.js';
+import { SECRET, client, dropIntranetStub, loadIntranetStub, prisma, resetDb, startServer, token } from './helpers.js';
 
 const ADMIN = { id: 10, email: 'admin@example.com' }; // sedes 1, 2 y 3 (la 3 está inactiva)
 const OTHER = { id: 11, email: 'otro@example.com' }; // solo la sede 4
@@ -13,27 +13,21 @@ const tkAdmin = () => token(ADMIN);
 
 before(async () => {
   await resetDb();
+  await loadIntranetStub(); // sedes 1-5 de la intranet simulada; la 3 está inactiva en la intranet
   ({ server, url: globalThis.__url } = await startServer());
   api = client(globalThis.__url);
 
-  await prisma.sede.createMany({
-    data: [
-      { idSede: 1, name: 'Sede 1' },
-      { idSede: 2, name: 'Sede 2' },
-      { idSede: 3, name: 'Sede 3 (inactiva)', active: false },
-      { idSede: 4, name: 'Sede 4' },
-    ],
-  });
   await prisma.userBranchPermission.createMany({
     data: [
-      ...[1, 2, 3].map((idSede) => ({ userId: ADMIN.id, userEmail: ADMIN.email, idSede, createdBy: 'test' })),
-      { userId: OTHER.id, userEmail: OTHER.email, idSede: 4, createdBy: 'test' },
+      ...[1, 2, 3].map((idSede) => ({ userId: ADMIN.id, idSede, createdBy: 'test' })),
+      { userId: OTHER.id, idSede: 4, createdBy: 'test' },
     ],
   });
 });
 
 after(async () => {
   server.close();
+  await dropIntranetStub();
   await prisma.$disconnect();
 });
 
@@ -55,7 +49,7 @@ test('el header x-user-code de la versión anterior ya no autentica', async () =
 test('/me solo ofrece sedes permitidas y activas', async () => {
   const { status, body } = await api.get('/me', tkAdmin());
   assert.equal(status, 200);
-  assert.deepEqual(body.sedes.map((s) => s.idSede), [1, 2]);
+  assert.deepEqual(body.sedes, [{ idSede: 2, name: 'Sede Caracas' }, { idSede: 1, name: 'Sede Maracaibo' }], 'nombres reales de la intranet, por orden alfabético');
   assert.equal(body.email, ADMIN.email);
   assert.deepEqual((await api.get('/me', token(NOBODY))).body.sedes, []);
 });
@@ -89,12 +83,13 @@ test('acceso a sorteos: solo usuarios con permiso sobre alguna sede del grupo', 
 });
 
 test('desactivar una sede no oculta los sorteos históricos', async () => {
-  await prisma.sede.updateMany({ where: { idSede: { in: [1, 2] } }, data: { active: false } });
+  // Desactivar una sede en este módulo = una fila en Sede con active = false (una sede sin fila cuenta como activa).
+  await prisma.sede.createMany({ data: [1, 2].map((idSede) => ({ idSede, active: false })) });
   try {
     assert.equal((await api.get('/sorteos', tkAdmin())).body.length, 1);
     assert.deepEqual((await api.get('/me', tkAdmin())).body.sedes, []);
   } finally {
-    await prisma.sede.updateMany({ where: { idSede: { in: [1, 2] } }, data: { active: true } });
+    await prisma.sede.deleteMany({ where: { idSede: { in: [1, 2] } } });
   }
 });
 

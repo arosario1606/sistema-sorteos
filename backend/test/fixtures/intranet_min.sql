@@ -13,7 +13,28 @@ CREATE TABLE {{AUTH_SCHEMA}}."Locations" (
 INSERT INTO {{AUTH_SCHEMA}}."Locations" (id, "name", is_active) VALUES
   (1, 'Sede Maracaibo', true),
   (2, 'Sede Caracas', true),
-  (3, 'Sede Antigua', false);
+  (3, 'Sede Antigua', false),
+  (4, 'Sede Valencia', true),
+  (5, 'Sede Barquisimeto', true);
+
+DROP TABLE IF EXISTS {{AUTH_SCHEMA}}."Users";
+CREATE TABLE {{AUTH_SCHEMA}}."Users" (
+  id serial PRIMARY KEY,
+  email text NOT NULL UNIQUE,
+  "password" text NOT NULL,
+  verified bool DEFAULT false,
+  "name" text,
+  lastname text,
+  active bool DEFAULT true,
+  cedula text
+);
+-- Datos FICTICIOS. La "contraseña" y la cédula existen para comprobar que las vistas NO las exponen.
+INSERT INTO {{AUTH_SCHEMA}}."Users" (id, email, "password", verified, "name", lastname, active, cedula) VALUES
+  (10, 'admin@example.com',   'HASH-SECRETO-1', true, 'Ana María',  'Pérez Gómez', true,  '11111111'),
+  (11, 'otro@example.com',    'HASH-SECRETO-2', true, 'Luis',       'Rojas',       true,  '22222222'),
+  (12, 'josefina@example.com','HASH-SECRETO-3', true, 'Josefina',   'Núñez',       true,  '33333333'),
+  (13, 'baja@example.com',    'HASH-SECRETO-4', true, 'Pedro',      'Inactivo',    false, '44444444'),
+  (14, '100%@example.com',    'HASH-SECRETO-5', true, 'Cien',       'Porciento',   true,  '55555555');
 
 DROP TABLE IF EXISTS {{EMPLOYEES_SCHEMA}}."Employee";
 CREATE TABLE {{EMPLOYEES_SCHEMA}}."Employee" (

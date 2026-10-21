@@ -11,7 +11,6 @@
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "seed:dev": "node prisma/seed.dev.js",
-    "sync:sedes": "node prisma/sync.js sedes",
     "sync:employees": "node prisma/sync.js employees",
     "dev:token": "node scripts/dev-token.js",
     "postinstall": "prisma generate"

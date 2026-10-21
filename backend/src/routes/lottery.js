@@ -7,6 +7,8 @@ import { importParticipants } from '../services/importParticipants.js';
 import { importQuotas } from '../services/importQuotas.js';
 import { drawNextWinner, getDrawStatus } from '../services/draw.js';
 import { finalizeSorteo } from '../services/finalize.js';
+import { activeSedeIds, describeSedes, listSedes, sedeNames } from '../services/sedes.js';
+import { getUserPermissions, saveUserPermissions, searchUsers } from '../services/permissions.js';
 
 // IMPORTANTE: el gateway de la intranet autoriza por ruta EXACTA (Routes_backend_child.route_path),
 // así que no se usan parámetros en el path: el id del sorteo viaja en `?id=` o en el body.
@@ -21,11 +23,10 @@ function requireFile(req) {
 
 // Usuario autenticado y las sedes sobre las que puede crear sorteos
 router.get('/me', asyncHandler(async (req, res) => {
-  const sedes = await prisma.sede.findMany({
-    where: { idSede: { in: req.user.activeSedeIds }, active: true },
-    select: { idSede: true, name: true },
-    orderBy: { name: 'asc' },
-  });
+  const mine = new Set(req.user.sedeIds);
+  const sedes = (await listSedes())
+    .filter((s) => s.active && mine.has(s.idSede))
+    .map(({ idSede, name }) => ({ idSede, name }));
   res.json({ userId: req.user.id, email: req.user.email, sedes });
 }));
 
@@ -34,14 +35,15 @@ router.get('/sorteos', asyncHandler(async (req, res) => {
   const sorteos = await prisma.sorteos.findMany({
     where: { branchGroup: { details: { some: { idSede: { in: req.user.sedeIds } } } } },
     orderBy: [{ sorteoDate: 'desc' }, { idSorteos: 'desc' }],
-    include: { branchGroup: { include: { details: { include: { sede: true } } } } },
+    include: { branchGroup: { include: { details: true } } },
   });
+  const nameOf = await sedeNames();
   res.json(sorteos.map((s) => ({
     idSorteos: s.idSorteos,
     name: s.name,
     sorteoDate: s.sorteoDate,
     groupId: s.groupId,
-    sedes: s.branchGroup.details.map((d) => ({ idSede: d.sede.idSede, name: d.sede.name })),
+    sedes: s.branchGroup.details.map((d) => ({ idSede: d.idSede, name: nameOf(d.idSede) })),
   })));
 }));
 
@@ -54,7 +56,8 @@ router.post('/sorteos/create', asyncHandler(async (req, res) => {
   if (!Array.isArray(sedeIds) || sedeIds.length === 0) throw new HttpError(400, 'Seleccione al menos una sede');
 
   const ids = [...new Set(sedeIds.map(Number))];
-  if (ids.some((id) => !Number.isInteger(id) || !req.user.activeSedeIds.includes(id))) {
+  const offered = ids.every(Number.isInteger) ? await activeSedeIds(ids) : new Set();
+  if (ids.some((id) => !req.user.sedeIds.includes(id) || !offered.has(id))) {
     throw new HttpError(403, 'No tienes permiso sobre alguna de las sedes seleccionadas');
   }
 
@@ -98,7 +101,7 @@ router.get('/sorteos/detail', asyncHandler(async (req, res) => {
     name: sorteo.name,
     sorteoDate: sorteo.sorteoDate,
     groupId: sorteo.groupId,
-    sedes: sorteo.branchGroup.details.map((d) => ({ idSede: d.sede.idSede, name: d.sede.name })),
+    sedes: await describeSedes(sorteo.branchGroup.details),
     quotas: quotas.map((q) => ({ idDepartment: q.idDepartment, department: q.department.name, allowedQuantity: q.allowedQuantity })),
     counts: { participants, attended, winners },
   });
@@ -196,6 +199,33 @@ router.post('/draw/execute', asyncHandler(async (req, res) => {
 router.get('/draw/winners', asyncHandler(async (req, res) => {
   const sorteo = await getAccessibleSorteo(parseId(req.query.id), req.user);
   res.json(await getDrawStatus(sorteo.idSorteos, sorteo.groupId));
+}));
+
+// ---- Permisos por sedes (pantalla «Permisos por Sedes») ----------------------------------------------
+// El gateway deja entrar solo al grupo al que se le asignaron estas rutas (ADMINISTRADOR); este servicio no conoce
+// los grupos. Quien las llama puede asignar CUALQUIER sede a CUALQUIER usuario.
+
+// Buscar usuarios activos de la intranet por nombre, apellido o correo
+router.get('/permisos/usuarios', asyncHandler(async (req, res) => {
+  res.json(await searchUsers(req.query.q));
+}));
+
+// Todas las sedes de la intranet, con su estado (las inactivas no se pueden asignar de nuevo)
+router.get('/permisos/sedes', asyncHandler(async (req, res) => {
+  res.json(await listSedes());
+}));
+
+// Usuario y sedes asignadas
+router.get('/permisos/usuario', asyncHandler(async (req, res) => {
+  res.json(await getUserPermissions(parseId(req.query.id)));
+}));
+
+// Reemplaza el conjunto completo de sedes del usuario
+router.post('/permisos/usuario/guardar', asyncHandler(async (req, res) => {
+  const userId = parseId(req.body?.userId, 'userId');
+  const result = await saveUserPermissions({ userId, sedeIds: req.body?.sedeIds, actor: req.user.email });
+  console.log(`Permisos de sedes del usuario ${userId} guardados por ${req.user.email}: +${result.added} -${result.removed}`);
+  res.json(result);
 }));
 
 export default router;

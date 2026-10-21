@@ -19,6 +19,10 @@ ver [`docs/integracion/INTEGRACION.md`](docs/integracion/INTEGRACION.md).
    era de prueba, sus ganadores también quedan en el registro y se borran a mano por SQL.
 
 Elegible = `participa = SI` + asistió + no ha ganado + su gerencia aún tiene cupo en el grupo.
+6. **Permisos por Sedes** (solo el grupo ADMINISTRADOR): se busca a un usuario de la intranet por nombre, apellido o correo y se marcan
+   las sedes sobre las que puede crear sorteos; «Guardar cambios» reemplaza su conjunto completo de sedes. Las sedes inactivas no se pueden
+   asignar de nuevo. Ya no hace falta insertar permisos por SQL.
+
 Los cupos son por gerencia dentro del grupo (las sedes del grupo comparten gerencias).
 Una gerencia sin cupo cargado no tiene ganadores.
 
@@ -40,9 +44,11 @@ Ejemplos con datos ficticios en `docs/ejemplos/`.
 
 | Tabla del módulo | Origen |
 |---|---|
-| `Sede` | Copia de `intranet_api_auth_manager."Locations"` (`npm run sync:sedes`). `active = false` oculta una sede al crear sorteos nuevos sin perder el historial. |
+| Sedes (vista `v_sede`) | **Lectura en vivo** de `intranet_api_auth_manager."Locations"`: una sede nueva o renombrada en la intranet se ve de inmediato, sin copiar nada. La vista la crea el administrador con `docs/integracion/vistas-sorteos.sql`. |
+| `Sede` | Solo la **configuración propia** (`id_sede` + `active`). `active = false` oculta una sede al crear sorteos y al asignar permisos, sin perder el historial. Una sede sin fila cuenta como activa. |
+| Usuarios (vista `v_users`) | **Lectura en vivo** de `intranet_api_auth_manager."Users"`, solo `id`, nombre, apellido, correo y estado: nunca la contraseña ni la cédula. Se usa en «Permisos por Sedes». |
 | `Employee` | Copia de `intranet_employees_db."Employee"` (`npm run sync:employees`) + cédulas nuevas que lleguen en los CSV. Se actualiza a mano cuando haga falta. |
-| `User_branch_permission` | Propia: `user_id` (= `Users.id` de la intranet), `user_email` (informativo) e `id_sede`. |
+| `User_branch_permission` | Propia: `user_id` (= `Users.id` de la intranet), `id_sede` y `created_by`. Se administra desde la pantalla «Permisos por Sedes». |
 | `Winner_history` | Propia y **permanente**: nunca se borra. Una fila por ganador con `sorteo_name`, `sorteo_date` (fecha del sorteo, sin hora), `cedula`, `full_name`, `department` (gerencia), `winning_order` y `created_at` (cuándo se registró). Se llena al finalizar el sorteo, en la misma transacción que borra lo demás, y no tiene claves foráneas: es una foto. Dos sorteos con el mismo nombre se distinguen por `sorteo_date`. No tiene pantalla: se consulta por SQL. |
 | `Department` | Propia. Se llena sola con las gerencias que vengan en los CSV (no se copia de `Area`: sus nombres no coinciden con los del CSV de RRHH) y se borra al finalizar un sorteo si ningún otro sorteo la usa. |
 
@@ -62,7 +68,7 @@ curl http://localhost:3060/health                       # {"status":"ok"}
 
 ## Puesta en marcha local
 
-Requisitos: Node 22 y un PostgreSQL con la base `intranet` (con los esquemas `intranet_api_auth_manager` e `intranet_employees_db` si se usarán los `sync`).
+Requisitos: Node 22 y un PostgreSQL con la base `intranet` (con los esquemas `intranet_api_auth_manager` —sedes y usuarios— e `intranet_employees_db` si se usará `sync:employees`).
 
 ```bash
 # Backend
@@ -70,7 +76,8 @@ cd backend
 cp .env.example .env          # ajustar DATABASE_URL, SERVICES_SECRET_KEY (de PRUEBA), DEV_USER_ID y DEV_USER_EMAIL
 npm install
 npm run migrate:deploy        # crea el esquema "sorteos" y sus tablas (versionadas en prisma/migrations)
-npm run sync:sedes            # copia las sedes desde Locations
+# Las sedes y los usuarios se leen de las vistas v_sede / v_users: créelas una vez (con un usuario que lea intranet_api_auth_manager)
+psql "<conexión a la base intranet>" -f ../docs/integracion/vistas-sorteos.sql
 npm run sync:employees        # (opcional) copia los empleados
 npm run seed:dev              # SOLO pruebas: permisos del usuario de desarrollo en todas las sedes activas
 npm run dev                   # http://localhost:3000
@@ -92,15 +99,17 @@ No se usa `db push`.
 
 ```bash
 cd backend
-npm test                      # unitarias (sin base de datos); en frontend/ también hay `npm test` (exportación del CSV)
+npm test                      # unitarias (sin base de datos); en frontend/ también hay `npm test` (exportación del CSV, contador y lógica de «Permisos por Sedes»)
 
 # Integración: usan esquemas DESCARTABLES (sorteos_test, sorteos_test_auth, sorteos_test_employees) y los limpian solos.
+# La intranet se simula en esos esquemas y las vistas se crean con el MISMO docs/integracion/vistas-sorteos.sql.
 # Nunca tocan sorteos ni los esquemas reales de la intranet; por eso exigen ?schema=sorteos_test
 DATABASE_URL="postgresql://usuario:clave@localhost:5432/intranet?schema=sorteos_test" npm run test:integration
 ```
 
 Cubren: autenticación (token ausente/falso/vencido/`alg:none`), permisos por sede, sedes inactivas, flujo completo del sorteo
-(asistencia, `participa = NO`, cupos, gerencias nuevas desde el CSV, nadie gana dos veces), **ejecuciones simultáneas**, cargas simultáneas con una misma gerencia nueva y las sincronizaciones desde la intranet, y **finalizar sorteo** (borra todo lo del sorteo, conserva lo compartido con otro sorteo,
+(asistencia, `participa = NO`, cupos, gerencias nuevas desde el CSV, nadie gana dos veces), **ejecuciones simultáneas**, cargas simultáneas con una misma gerencia nueva y la sincronización de empleados, la **lectura en vivo de sedes y usuarios** (sede nueva, renombrada, desactivada o eliminada; el script de vistas se ejecuta tal cual y no expone contraseña ni cédula),
+**«Permisos por Sedes»** (búsqueda sin tildes, límites, guardado del conjunto completo, validaciones, guardados simultáneos y error claro si faltan las vistas) y **finalizar sorteo** (borra todo lo del sorteo, conserva lo compartido con otro sorteo,
 revierte si algo falla a mitad —sin dejar copias a medias en el historial— y convive con un sorteo en curso) y el **registro permanente de ganadores**
 (orden, fecha, nombre y gerencia correctos; nombres repetidos distinguidos por fecha; el historial sobrevive a otras finalizaciones).
 

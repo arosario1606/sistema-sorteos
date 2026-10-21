@@ -6,7 +6,7 @@ import { HttpError } from '../utils/http.js';
 export async function getAccessibleSorteo(idSorteos, user) {
   const sorteo = await prisma.sorteos.findUnique({
     where: { idSorteos },
-    include: { branchGroup: { include: { details: { include: { sede: true } } } } },
+    include: { branchGroup: { include: { details: true } } },
   });
   if (!sorteo) throw new HttpError(404, 'Sorteo no encontrado');
 

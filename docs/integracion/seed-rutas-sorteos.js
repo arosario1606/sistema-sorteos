@@ -4,6 +4,8 @@
 //
 // El gateway autoriza por ruta EXACTA y route_path / route_name son únicos en toda la intranet.
 // Si se agrega un endpoint a backend/src/routes/lottery.js, hay que agregarlo aquí y volver a ejecutar.
+// Este seed solo registra RUTAS DE BACKEND. La entrada de menú de «Permisos por Sedes» (ruta de frontend /lotteryperm)
+// y las asignaciones a grupos las hace docs/integracion/registro-rutas-permisos.sql.
 import { PrismaClient } from '../../../generated/auth/index.js';
 
 const prisma = new PrismaClient();
@@ -23,6 +25,11 @@ const children = [
   { name: 'Sorteos - Marcar asistencia de todos', path: '/api/lottery/attendance/mark-all' },
   { name: 'Sorteos - Ejecutar sorteo', path: '/api/lottery/draw/execute' },
   { name: 'Sorteos - Ver ganadores', path: '/api/lottery/draw/winners' },
+  // Pantalla «Permisos por Sedes»: asignarlas SOLO al grupo ADMINISTRADOR (quien las llama puede dar acceso a cualquier sede).
+  { name: 'Sorteos - Permisos: buscar usuarios', path: '/api/lottery/permisos/usuarios' },
+  { name: 'Sorteos - Permisos: listar sedes', path: '/api/lottery/permisos/sedes' },
+  { name: 'Sorteos - Permisos: ver usuario', path: '/api/lottery/permisos/usuario' },
+  { name: 'Sorteos - Permisos: guardar usuario', path: '/api/lottery/permisos/usuario/guardar' },
 ];
 
 async function main() {

@@ -37,17 +37,12 @@ export async function authenticate(req, res, next) {
 
     const permissions = await prisma.userBranchPermission.findMany({
       where: { userId: id },
-      select: { idSede: true, sede: { select: { active: true } } },
+      select: { idSede: true },
     });
 
-    req.user = {
-      id,
-      email,
-      // Todas las sedes con permiso: sirven para consultar sorteos ya creados.
-      sedeIds: permissions.map((p) => p.idSede),
-      // Solo las sedes activas se ofrecen al crear sorteos nuevos.
-      activeSedeIds: permissions.filter((p) => p.sede.active).map((p) => p.idSede),
-    };
+    // Todas las sedes con permiso: sirven para consultar sorteos ya creados. Cuáles se pueden ofrecer hoy para
+    // crear sorteos nuevos depende de las vistas de la intranet y se calcula solo donde hace falta (services/sedes.js).
+    req.user = { id, email, sedeIds: permissions.map((p) => p.idSede) };
     next();
   } catch (err) {
     next(err);
