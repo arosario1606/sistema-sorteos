@@ -62,8 +62,8 @@ Ejemplos con datos ficticios en `docs/ejemplos/`.
 Contenedor del backend (desde `backend/`, con `.env.docker` creado a partir de `.env.docker.example`):
 
 ```bash
-docker compose --env-file .env.docker up --build -d    # puerto 3060; las migraciones se aplican al arrancar
-curl http://localhost:3060/health                       # {"status":"ok"}
+docker compose --env-file .env.docker up --build -d    # puerto 3008; las migraciones se aplican al arrancar
+curl http://localhost:3008/health                       # {"status":"ok"}
 ```
 
 ## Puesta en marcha local

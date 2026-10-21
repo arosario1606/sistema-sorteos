@@ -11,7 +11,7 @@ Lista de comprobación para desplegar el módulo de sorteos. El detalle técnico
 | Host y puerto de PostgreSQL (la misma base `intranet`) | `DATABASE_URL` del módulo | Se copian de `SCHEMA_API_AUTH` en `intranet-api-auth/.env` |
 | Clave del rol `sorteos_app` | `DATABASE_URL` | La define quien ejecute el paso 2 |
 | `SERVICES_SECRET_KEY` de producción | Verificar `x-auth-token` | El MISMO valor de `intranet-api-auth/.env`. No se sube al repo |
-| Puerto libre del servidor para el módulo | Publicar el contenedor | Por defecto 3060; debe coincidir con `LOTTERY_SERVICE_PORT` en el gateway |
+| Puerto libre del servidor para el módulo | Publicar el contenedor | Por defecto 3008 (el acordado con el administrador); debe coincidir con `LOTTERY_SERVICE_PORT` en el gateway |
 | Quién administra los permisos por sede | Pantalla «Permisos por Sedes» | Solo el grupo `ADMINISTRADOR` (paso 6); si se quiere otro grupo, se asigna la pantalla y sus 4 rutas a ese grupo |
 | Quién ejecuta los scripts SQL de este documento | Vistas y rutas (pasos 2b y 5) | Alguien que ya pueda leer `intranet_api_auth_manager` (p. ej. el administrador de la base) |
 
@@ -146,7 +146,7 @@ Con una sesión real de la intranet y un usuario con permisos:
 
 ## 9. Seguridad y operación
 
-- **Puerto expuesto:** el compose publica `3060:3000` en todas las interfaces (igual que el patrón del gateway). El servicio exige un
+- **Puerto expuesto:** el compose publica `3008:3000` en todas las interfaces (igual que el patrón del gateway). El servicio exige un
   `x-auth-token` firmado, pero conviene que un firewall limite ese puerto a la IP del gateway.
 - **Finalizar sorteo borra de forma definitiva** el sorteo, participantes, ganadores y cupos, **pero guarda antes a los ganadores en
   `sorteos."Winner_history"`**, una tabla permanente (nombre, cédula, gerencia, orden, nombre del sorteo y fecha del sorteo). Es la única

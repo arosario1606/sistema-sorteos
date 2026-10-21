@@ -46,7 +46,7 @@ Dependencia nueva en el frontend de la intranet: ninguna que no tenga ya (`@tans
    Las gerencias (`Department`) se crean solas con las que traigan los CSV de participantes y de cupos. Los permisos por sede
    (`User_branch_permission`: `user_id` = `Users.id`, `id_sede`) se asignan desde la pantalla «Permisos por Sedes».
 3. **Variables del servicio:** `DATABASE_URL`, `PORT=3000`, `SERVICES_SECRET_KEY` (el MISMO valor que el gateway; no se sube al repo).
-4. **Docker.** `backend/docker-compose.yml` sigue el estilo del de `intranet-api-auth` (puerto `3060:3000`, que debe coincidir con
+4. **Docker.** `backend/docker-compose.yml` sigue el estilo del de `intranet-api-auth` (puerto `3008:3000`, que debe coincidir con
    `LOTTERY_SERVICE_PORT` del gateway). Copiar `backend/.env.docker.example` a `backend/.env.docker` (no se sube al repo), completar
    `DATABASE_URL` y `SERVICES_SECRET_KEY` y ejecutar `docker compose --env-file .env.docker up --build -d` dentro de `backend/`.
    El contenedor aplica las migraciones al arrancar, corre como usuario `node` y expone `/health`. Dentro de un contenedor `localhost`
@@ -59,7 +59,7 @@ Dependencia nueva en el frontend de la intranet: ninguna que no tenga ya (`@tans
    1. **Copiar el archivo del gateway.** `docs/integracion/lottery.gateway.routes.js` → `intranet-api-auth/src/routes/lottery.gateway.routes.js`.
       En `intranet-api-auth/src/index.js` agregar `import lotteryRoutes from "./routes/lottery.gateway.routes.js";` y, junto a los demás
       `app.use(...)`, `app.use(lotteryRoutes);`. Ese archivo recibe todo lo que llegue a `/apiv1/lottery-service` y lo reenvía al contenedor.
-   2. **Confirmar el puerto.** En ese mismo archivo, `LOTTERY_SERVICE_PORT` (3060) debe ser el puerto publicado por el contenedor del paso 4.
+   2. **Confirmar el puerto.** En ese mismo archivo, `LOTTERY_SERVICE_PORT` (3008) debe ser el puerto publicado por el contenedor del paso 4.
       La dirección del servidor sale de `DOCKER_SERVER_IP` en el `.env` del gateway. No se toca el resto del archivo; en particular
       `parseReqBody: !req.is("multipart/form-data")` es lo que permite subir los CSV.
    3. **Registrar las rutas en la base de datos.** Copiar `docs/integracion/seed-rutas-sorteos.js` a

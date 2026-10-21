@@ -13,7 +13,7 @@ import { checkAuth } from "../middlewares/checkAuth.js";
 const router = Router();
 
 // Puerto del servicio de sorteos en la red Docker. CONFIRMAR con el equipo de la intranet que esté libre.
-const LOTTERY_SERVICE_PORT = 3060;
+const LOTTERY_SERVICE_PORT = 3008;
 
 router.use("/apiv1/lottery-service", checkAuth, async (req, res, next) => {
   // Ruta padre registrada en Routes_backend (ver seed-rutas-sorteos.js)
