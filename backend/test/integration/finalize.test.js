@@ -28,8 +28,11 @@ after(async () => {
   await prisma.$disconnect();
 });
 
-const newSorteo = async (name, sedeIds = [1]) =>
-  (await api.post('/sorteos/create', tk(), { name, sorteoDate: '2026-12-20', sedeIds })).body;
+const newSorteo = async (name, sedeIds = [1], sorteoDate = '2026-12-20') =>
+  (await api.post('/sorteos/create', tk(), { name, sorteoDate, sedeIds })).body;
+
+const history = (sorteoName) =>
+  prisma.winnerHistory.findMany({ where: { sorteoName }, orderBy: [{ sorteoDate: 'asc' }, { winningOrder: 'asc' }] });
 
 async function load(id, quotas, participants) {
   if (quotas) await api.upload(`/quotas/upload?id=${id}`, tk(), quotas);
@@ -74,6 +77,37 @@ test('finalizar borra el sorteo y sus datos, conserva lo compartido y no toca ot
   assert.equal((await api.get(`/sorteos/detail?id=${a.idSorteos}`, tk())).status, 404);
   assert.equal((await api.post(`/draw/execute?id=${a.idSorteos}`, tk())).status, 404);
   assert.equal((await api.post('/sorteos/finalize', tk(), { idSorteos: a.idSorteos })).status, 404, 'no se puede finalizar dos veces');
+
+  // Los ganadores de A quedaron en el historial (con lo que se borró no hay forma de reconstruirlos); los de B, no.
+  const rows = await history('Sorteo A');
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows.map((r) => r.winningOrder), [1, 2, 3], 'conserva el orden en que ganaron');
+  assert.equal(new Set(rows.map((r) => r.cedula)).size, 3, 'sin repetidos');
+  for (const r of rows) {
+    assert.equal(r.sorteoDate.toISOString().slice(0, 10), '2026-12-20', 'fecha del sorteo, no la de creación');
+    assert.match(r.cedula, /^[1-4]$/);
+    assert.equal(r.fullName, `A${r.cedula} X`, 'nombres y apellidos del ganador (en el CSV el apellido va primero)');
+    assert.equal(r.department, r.cedula <= 2 ? 'GERENCIA COMPARTIDA' : 'GERENCIA SOLO A');
+  }
+  assert.equal((await history('Sorteo B')).length, 0, 'B no está finalizado: sus ganadores siguen solo en Winner');
+});
+
+test('el historial es permanente: sobrevive a finalizar otros sorteos y distingue nombres repetidos por fecha', async () => {
+  const d1 = await newSorteo('Sorteo Navidad', [1], '2026-12-10');
+  const d2 = await newSorteo('Sorteo Navidad', [1], '2026-12-24');
+  await load(d1.idSorteos, 'GERENCIA N;1', '31;Uno;Ana;C;GERENCIA N;SI');
+  await load(d2.idSorteos, 'GERENCIA N;1', '32;Dos;Beto;C;GERENCIA N;SI');
+  for (const s of [d1, d2]) assert.equal((await api.post(`/draw/execute?id=${s.idSorteos}`, tk())).status, 201);
+
+  assert.equal((await api.post('/sorteos/finalize', tk(), { idSorteos: d1.idSorteos })).status, 200);
+  assert.equal((await api.post('/sorteos/finalize', tk(), { idSorteos: d2.idSorteos })).status, 200);
+
+  const rows = await history('Sorteo Navidad');
+  assert.deepEqual(rows.map((r) => [r.sorteoDate.toISOString().slice(0, 10), r.cedula, r.fullName, r.winningOrder]), [
+    ['2026-12-10', '31', 'ANA UNO', 1],
+    ['2026-12-24', '32', 'BETO DOS', 1],
+  ], 'mismo nombre, se distinguen por la fecha');
+  assert.equal((await history('Sorteo A')).length, 3, 'finalizar otros sorteos no toca lo ya guardado');
 });
 
 test('finalizar valida acceso y datos sin borrar nada', async () => {
@@ -95,6 +129,7 @@ test('se puede finalizar sin haber sacado ganadores ni cargado datos', async () 
   assert.equal(res.status, 200);
   assert.deepEqual(res.body, { idSorteos: s.idSorteos, participants: 0, winners: 0, departmentsDeleted: 0 });
   assert.equal((await counts(s.idSorteos, s.groupId)).group, 0);
+  assert.equal((await history('Vacío')).length, 0, 'sin ganadores no se registra nada');
 });
 
 test('si algo falla a mitad del borrado no se borra nada (transacción)', async () => {
@@ -114,11 +149,13 @@ test('si algo falla a mitad del borrado no se borra nada (transacción)', async 
     const res = await api.post('/sorteos/finalize', tk(), { idSorteos: s.idSorteos });
     assert.equal(res.status, 500);
     assert.deepEqual(await counts(s.idSorteos, s.groupId), before, 'todo sigue ahí tras el fallo');
+    assert.equal((await history('Rollback')).length, 0, 'tampoco quedó una copia a medias en el historial');
   } finally {
     await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS fail_department_delete ON "Department"');
     await prisma.$executeRawUnsafe('DROP FUNCTION IF EXISTS fail_department_delete()');
   }
   assert.equal((await api.post('/sorteos/finalize', tk(), { idSorteos: s.idSorteos })).status, 200, 'sin el fallo sí finaliza');
+  assert.equal((await history('Rollback')).length, 1, 'y entonces sí se registra el ganador, una sola vez');
 });
 
 test('finalizar mientras se sortea no deja datos a medias', async () => {
@@ -136,4 +173,7 @@ test('finalizar mientras se sortea no deja datos a medias', async () => {
   for (const r of [results[0], results[1], results[3]]) assert.ok([201, 404].includes(r.status), `sorteo: ${r.status}`);
   assert.deepEqual(await counts(s.idSorteos, s.groupId), { sorteo: 0, participants: 0, winners: 0, group: 0, groupSedes: 0, quotas: 0 });
   assert.equal(await prisma.department.count({ where: { name: 'GERENCIA CARRERA F' } }), 0);
+  const saved = await history('Carrera');
+  assert.equal(saved.length, results[2].body.winners, 'el historial tiene exactamente los ganadores que existían al finalizar');
+  assert.deepEqual(saved.map((r) => r.winningOrder), saved.map((_, i) => i + 1), 'órdenes consecutivos, sin huecos ni repetidos');
 });

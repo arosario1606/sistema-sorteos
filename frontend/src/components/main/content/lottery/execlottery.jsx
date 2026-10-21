@@ -11,7 +11,7 @@ const SPIN_MS = 3500
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 // Ejecutar sorteo: cada pulsación saca un ganador. Los ganadores se ven todos a la vez (sin scroll) y la
-// «pantalla completa» deja solo el sorteo para proyectarlo. «Finalizar» borra el sorteo y sus datos.
+// «pantalla completa» deja solo el sorteo para proyectarlo. «Finalizar» borra el sorteo y sus datos, y deja los ganadores en el registro permanente.
 const ExecLottery = () => {
   const [idSorteos, setIdSorteos] = useState(null)
   const [info, setInfo] = useState(null)

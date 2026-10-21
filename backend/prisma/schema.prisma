@@ -163,3 +163,22 @@ model Winner {
 
   @@map("Winner")
 }
+
+// 11. Winner_history: registro PERMANENTE de los ganadores. Se llena al finalizar un sorteo, dentro de la misma
+//     transacción que borra todo lo demás, y no se borra nunca. Es una foto sin claves foráneas: no depende de
+//     Sorteos, Winner ni Employee (el sorteo se borra y el empleado puede cambiar de nombre o desaparecer).
+//     `sorteoName` + `sorteoDate` identifican el sorteo; son los únicos datos del sorteo que quedan guardados.
+model WinnerHistory {
+  id           Int      @id @default(autoincrement())
+  sorteoName   String   @map("sorteo_name") @db.VarChar(150)
+  sorteoDate   DateTime @map("sorteo_date") @db.Date
+  cedula       String   @db.VarChar(50)
+  fullName     String   @map("full_name") @db.VarChar(250)
+  department   String   @db.VarChar(100)
+  winningOrder Int      @map("winning_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([cedula])
+  @@index([sorteoDate])
+  @@map("Winner_history")
+}

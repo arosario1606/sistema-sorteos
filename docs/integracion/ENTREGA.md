@@ -90,15 +90,20 @@ Con una sesión real de la intranet y un usuario con permisos:
 2. Se suben los dos CSV de `docs/ejemplos/` (16 cupos, 61 participantes, 0 errores).
 3. «Listar asistencia» guarda las marcas y «Marcar a todos como asistentes» pide confirmación.
 4. «Ejecutar sorteo» saca ganadores sin repetir ni superar el cupo de ninguna gerencia, y «Pantalla completa» los muestra todos a la vez.
-5. «Finalizar sorteo» descarga el CSV, borra el sorteo y deja la base sin sus filas.
+5. «Finalizar sorteo» (el CSV es opcional) borra el sorteo y deja la base sin sus filas, salvo los ganadores, que quedan en `sorteos."Winner_history"`.
 6. Un usuario **sin** permisos recibe 403 y uno sin sesión es redirigido al inicio.
 
 ## 9. Seguridad y operación
 
 - **Puerto expuesto:** el compose publica `3060:3000` en todas las interfaces (igual que el patrón del gateway). El servicio exige un
   `x-auth-token` firmado, pero conviene que un firewall limite ese puerto a la IP del gateway.
-- **Finalizar sorteo borra de forma definitiva** el sorteo, participantes, ganadores y cupos; la única copia de los ganadores es el CSV
-  descargado. Incluir el esquema `sorteos` en los respaldos de la base.
+- **Finalizar sorteo borra de forma definitiva** el sorteo, participantes, ganadores y cupos, **pero guarda antes a los ganadores en
+  `sorteos."Winner_history"`**, una tabla permanente (nombre, cédula, gerencia, orden, nombre del sorteo y fecha del sorteo). Es la única
+  tabla que conserva información de sorteos ya finalizados; no tiene pantalla, se consulta por SQL:
+  `SELECT * FROM sorteos."Winner_history" ORDER BY sorteo_date, sorteo_name, winning_order;`
+  Los sorteos de prueba también quedan registrados (con el nombre que tuvieran): se eliminan a mano
+  (`DELETE FROM sorteos."Winner_history" WHERE sorteo_name = '<nombre>';`). Contiene datos personales y se conserva sin límite de tiempo
+  (decisión del proyecto): defina quién la consulta. Incluir el esquema `sorteos` en los respaldos de la base.
 - **Secretos:** `.env.docker` y la clave del rol no se versionan ni se comparten por chat o correo.
 - **Dependencias:** `npm audit` marca 3 avisos altos por `deepmerge-ts`, interno de `prisma` y solo usado por su herramienta de línea de comandos.
   La corrección existe solo en Prisma 8, hoy candidata a lanzamiento; se actualizará cuando sea estable.
@@ -108,7 +113,7 @@ Con una sesión real de la intranet y un usuario con permisos:
 1. Quitar las rutas `/lottery-service` del grupo de permisos (el módulo deja de ser accesible) y detener el contenedor:
    `docker compose --env-file .env.docker down`.
 2. Frontend: restaurar los archivos anteriores de `intranet-frontend` desde su control de versiones.
-3. Solo si se quiere borrar también los datos: `DROP SCHEMA sorteos CASCADE;` (**borra todos los sorteos**). No afecta a otros esquemas.
+3. Solo si se quiere borrar también los datos: `DROP SCHEMA sorteos CASCADE;` (**borra todos los sorteos y el historial permanente de ganadores**; respáldelo antes si hay que conservarlo). No afecta a otros esquemas.
 
 ## 11. Lo que NO se ha verificado
 

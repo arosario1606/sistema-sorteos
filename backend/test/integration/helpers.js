@@ -18,7 +18,7 @@ export const token = (user, opts = {}) =>
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
     'TRUNCATE "Winner","Participant","Sorteos","Department_quota","Branch_group_detail","Branch_group",'
-    + '"User_branch_permission","Sede","Department","Employee" RESTART IDENTITY CASCADE',
+    + '"User_branch_permission","Sede","Department","Employee","Winner_history" RESTART IDENTITY CASCADE',
   );
 }
 

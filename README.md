@@ -13,9 +13,10 @@ ver [`docs/integracion/INTEGRACION.md`](docs/integracion/INTEGRACION.md).
 4. **Ejecutar sorteo:** cada pulsación de «Sortear» saca un ganador (cuenta regresiva de 3,5 s), hasta que no queden elegibles.
    Todos los ganadores se ven a la vez (sin scroll) y «Pantalla completa» deja solo el sorteo para proyectarlo.
 5. **Finalizar sorteo:** botón en «Ejecutar sorteo». **Borra de forma definitiva** el sorteo, sus participantes, ganadores, cupos y
-   las gerencias que ningún otro sorteo use (los empleados se conservan). Pide escribir el nombre del sorteo y ofrece antes
-   «Descargar ganadores (CSV)» (`ganadores sorteo <nombre>.csv`): es la única copia que queda. Se puede finalizar aunque no se
-   hayan sacado todos los ganadores, y sirve también para eliminar un sorteo creado por error.
+   las gerencias que ningún otro sorteo use (los empleados se conservan), **pero antes guarda los ganadores de forma permanente**
+   en `Winner_history` (ver más abajo). Pide escribir el nombre del sorteo y ofrece «Descargar ganadores (CSV)»
+   (`ganadores sorteo <nombre>.csv`), que es opcional. Se puede finalizar aunque no se hayan sacado todos los ganadores; si el sorteo
+   era de prueba, sus ganadores también quedan en el registro y se borran a mano por SQL.
 
 Elegible = `participa = SI` + asistió + no ha ganado + su gerencia aún tiene cupo en el grupo.
 Los cupos son por gerencia dentro del grupo (las sedes del grupo comparten gerencias).
@@ -42,6 +43,7 @@ Ejemplos con datos ficticios en `docs/ejemplos/`.
 | `Sede` | Copia de `intranet_api_auth_manager."Locations"` (`npm run sync:sedes`). `active = false` oculta una sede al crear sorteos nuevos sin perder el historial. |
 | `Employee` | Copia de `intranet_employees_db."Employee"` (`npm run sync:employees`) + cédulas nuevas que lleguen en los CSV. Se actualiza a mano cuando haga falta. |
 | `User_branch_permission` | Propia: `user_id` (= `Users.id` de la intranet), `user_email` (informativo) e `id_sede`. |
+| `Winner_history` | Propia y **permanente**: nunca se borra. Una fila por ganador con `sorteo_name`, `sorteo_date` (fecha del sorteo, sin hora), `cedula`, `full_name`, `department` (gerencia), `winning_order` y `created_at` (cuándo se registró). Se llena al finalizar el sorteo, en la misma transacción que borra lo demás, y no tiene claves foráneas: es una foto. Dos sorteos con el mismo nombre se distinguen por `sorteo_date`. No tiene pantalla: se consulta por SQL. |
 | `Department` | Propia. Se llena sola con las gerencias que vengan en los CSV (no se copia de `Area`: sus nombres no coinciden con los del CSV de RRHH) y se borra al finalizar un sorteo si ningún otro sorteo la usa. |
 
 ## Documentación y despliegue
@@ -99,7 +101,8 @@ DATABASE_URL="postgresql://usuario:clave@localhost:5432/intranet?schema=sorteos_
 
 Cubren: autenticación (token ausente/falso/vencido/`alg:none`), permisos por sede, sedes inactivas, flujo completo del sorteo
 (asistencia, `participa = NO`, cupos, gerencias nuevas desde el CSV, nadie gana dos veces), **ejecuciones simultáneas**, cargas simultáneas con una misma gerencia nueva y las sincronizaciones desde la intranet, y **finalizar sorteo** (borra todo lo del sorteo, conserva lo compartido con otro sorteo,
-revierte si algo falla a mitad y convive con un sorteo en curso).
+revierte si algo falla a mitad —sin dejar copias a medias en el historial— y convive con un sorteo en curso) y el **registro permanente de ganadores**
+(orden, fecha, nombre y gerencia correctos; nombres repetidos distinguidos por fecha; el historial sobrevive a otras finalizaciones).
 
 ## Guía de prueba manual
 
@@ -116,7 +119,8 @@ revierte si algo falla a mitad y convive con un sorteo en curso).
    «Ya no quedan participantes elegibles» (con todos asistiendo salen 26 ganadores). Nadie se repite y ninguna gerencia supera su cupo.
    Probar «Pantalla completa»: todos los ganadores deben verse a la vez, sin bajar con el mouse (Esc para salir).
 5. **Finalizar sorteo:** pulsar «Finalizar sorteo», «Descargar ganadores (CSV)», escribir el nombre del sorteo y confirmar. Tras la
-   animación el sorteo ya no aparece en ningún selector, y en la base no queda ninguna fila suya.
+   animación el sorteo ya no aparece en ningún selector, y en la base solo queda su registro en `Winner_history`:
+   `SELECT * FROM sorteos."Winner_history" ORDER BY sorteo_date, sorteo_name, winning_order;`
 
 Para repetir el sorteo desde cero:
 

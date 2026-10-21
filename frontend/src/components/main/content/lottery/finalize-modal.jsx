@@ -3,8 +3,9 @@ import { api } from './lottery-api'
 import { ui } from './ui'
 import { buildWinnersCsv, downloadCsv, winnersFileName } from './winners-csv'
 
-// Confirmación para finalizar un sorteo: borra TODO de forma definitiva. Pide escribir el nombre del sorteo
-// y ofrece descargar antes los ganadores en CSV (única copia que queda fuera de la base de datos).
+// Confirmación para finalizar un sorteo: borra el sorteo y sus datos de forma definitiva, pero los ganadores
+// quedan registrados de forma permanente en la base (Winner_history). Pide escribir el nombre del sorteo y ofrece
+// descargar los ganadores en CSV (opcional).
 export default function FinalizeModal({ sorteo, winners, onClose, onDone }) {
   const [info, setInfo] = useState(null)
   const [typed, setTyped] = useState('')
@@ -49,17 +50,22 @@ export default function FinalizeModal({ sorteo, winners, onClose, onDone }) {
               <span className="absolute inset-0 flex animate-bounce items-center justify-center rounded-full bg-accent text-4xl text-white">✓</span>
             </div>
             <h2 className="text-xl font-semibold text-accent">Sorteo finalizado</h2>
-            <p className={ui.hint}>Los datos del sorteo fueron eliminados.</p>
+            <p className={ui.hint}>
+              {winners.length > 0 ? 'Los ganadores quedaron registrados y los datos del sorteo fueron eliminados.' : 'Los datos del sorteo fueron eliminados.'}
+            </p>
           </div>
         ) : (
           <>
             <h2 id="finalize-title" className="text-xl font-semibold text-red-600">Finalizar sorteo «{sorteo.name}»</h2>
             <p className="mt-2 text-sm text-gray-800">
               Se <b>borrarán de forma definitiva</b> {info ? <b>{info.counts.participants} participantes</b> : 'los participantes'},{' '}
-              <b>{winners.length} ganadores</b>, los cupos y las gerencias que ningún otro sorteo use. Esta acción no se puede deshacer.
+              los cupos y las gerencias que ningún otro sorteo use. Esta acción no se puede deshacer.
+              {winners.length > 0 && (
+                <> Los <b>{winners.length} ganadores</b> se guardan de forma permanente (nombre, cédula, gerencia, orden, sorteo y fecha).</>
+              )}
             </p>
             <div className="my-4 rounded-md bg-sky-50 p-3">
-              <p className={ui.hint}>Descargue los ganadores antes de finalizar: después no habrá forma de recuperarlos.</p>
+              <p className={ui.hint}>Puede descargar los ganadores en CSV; el registro permanente en la base de datos se hace igual.</p>
               <button
                 type="button"
                 className={`${ui.btnOutline} mt-2`}
