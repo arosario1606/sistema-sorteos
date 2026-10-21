@@ -170,29 +170,35 @@ const LotteryPerm = () => {
           </div>
 
           {visible.length === 0 && <p className={ui.hint}>No hay sedes que coincidan con el filtro.</p>}
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Cuadro con scroll propio: se ven unas 5 sedes y el resto se recorre dentro del cuadro, no con la página. */}
+          <ul
+            className="max-h-52 divide-y divide-gray-100 overflow-y-auto rounded-md border border-gray-200"
+            aria-label="Sedes"
+            data-testid="sedes-list"
+          >
             {visible.map((s) => {
               const on = selected.includes(s.idSede)
               const locked = !s.active && !on // una sede inactiva no se puede asignar de nuevo
               return (
-                <label
-                  key={s.idSede}
-                  className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${
-                    locked ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400' : 'cursor-pointer'
-                  } ${on ? 'border-primary bg-sky-50 text-gray-800' : 'border-gray-300 bg-white text-gray-800'}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={on}
-                    disabled={locked}
-                    onChange={() => setSelected(toggleSede(selected, s))}
-                  />
-                  <span>{s.name}</span>
-                  {!s.active && <span className="ml-auto text-xs text-gray-500">inactiva</span>}
-                </label>
+                <li key={s.idSede}>
+                  <label
+                    className={`flex items-center gap-3 px-3 py-2.5 text-sm ${
+                      locked ? 'cursor-not-allowed bg-gray-50 text-gray-400' : 'cursor-pointer hover:bg-sky-50'
+                    } ${on ? 'bg-sky-50 text-gray-800' : 'text-gray-800'}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      disabled={locked}
+                      onChange={() => setSelected(toggleSede(selected, s))}
+                    />
+                    <span>{s.name}</span>
+                    {!s.active && <span className="ml-auto text-xs text-gray-500">inactiva</span>}
+                  </label>
+                </li>
               )
             })}
-          </div>
+          </ul>
 
           {orphans.length > 0 && (
             <p className={ui.hint}>

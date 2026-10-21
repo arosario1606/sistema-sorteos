@@ -103,7 +103,7 @@ Cada usuario necesita permiso sobre las sedes en las que puede crear sorteos; si
 Se administran desde la pantalla **«Permisos por Sedes»** (menú Sorteos, visible solo para el grupo `ADMINISTRADOR`):
 
 1. Escribir al menos 2 letras del nombre, apellido o correo (sin importar tildes ni mayúsculas; solo salen usuarios activos, máximo 20).
-2. Elegir al usuario y marcar sus sedes (las inactivas no se pueden asignar; se puede filtrar la lista y usar «Marcar las visibles»).
+2. Elegir al usuario y marcar sus sedes en una lista con scroll propio de unas 5 filas (las inactivas no se pueden asignar; se puede filtrar la lista y usar «Marcar las visibles»).
 3. «Guardar cambios»: reemplaza el conjunto completo de sedes de ese usuario. Queda registrado en `created_by` quién las asignó.
 
 Los usuarios y las sedes salen de las vistas del paso 2b: un usuario o una sede nueva de la intranet aparece sola. Quien tenga acceso a esa
