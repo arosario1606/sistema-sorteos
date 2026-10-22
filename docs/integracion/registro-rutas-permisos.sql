@@ -49,9 +49,10 @@ WHERE p.route_path = '/lottery-service'
     SELECT 1 FROM intranet_api_auth_manager."Routes_backend_child" c WHERE c.route_path = v.route_path);
 
 -- ---- 3) Pantalla del menú: misma sección que /lotteryreg ------------------------------------------
+-- sequence = 1 (las otras tres pantallas tienen 0): así queda de última en el menú de «Sorteos».
 INSERT INTO intranet_api_auth_manager."Routes_frontend_child"
   (route_name, active, "routes_frontendId", route_path, type, visible, "powerBi", url, "routes_bi_categoryCategory", sequence)
-SELECT 'Permisos por Sedes', true, ref."routes_frontendId", '/lotteryperm', false, true, false, NULL, NULL, 0
+SELECT 'Permisos por Sedes', true, ref."routes_frontendId", '/lotteryperm', false, true, false, NULL, NULL, 1
 FROM intranet_api_auth_manager."Routes_frontend_child" ref
 WHERE ref.route_path = '/lotteryreg'
   AND NOT EXISTS (
