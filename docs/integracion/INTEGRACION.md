@@ -95,6 +95,9 @@ Dependencia nueva en el frontend de la intranet: ninguna que no tenga ya (`@tans
    Cómo se comprueba: las tres entradas del menú muestran las pantallas nuevas (no el iERP), y en las herramientas del navegador (pestaña Red)
    la llamada a `.../api/lottery/me` responde 200.
 
+   Atajo en SQL: `docs/integracion/registro-rutas-sorteos.sql` hace los pasos 5.3 y 5.4 (padre, 12 hijas y permisos de `SORTEOS` y
+   `ADMINISTRADOR`) sin ids fijos. Un grupo con las pantallas del menú pero sin estas rutas recibe «Acceso denegado».
+
 7. **«Permisos por Sedes»** (pantalla para asignar sedes a los usuarios; solo `ADMINISTRADOR`). Ejecutar una vez
    `docs/integracion/registro-rutas-permisos.sql`: registra las 4 rutas de backend `/api/lottery/permisos/{usuarios,sedes,usuario,usuario/guardar}`,
    la pantalla `/lotteryperm` en el menú (misma sección que `/lotteryreg`) y los permisos del grupo `ADMINISTRADOR`. Es SQL y no usa ids fijos,

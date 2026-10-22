@@ -91,6 +91,10 @@ ON CONFLICT (id_sede) DO UPDATE SET active = false, updated_at = now();
 2. Poner el puerto del módulo en `LOTTERY_SERVICE_PORT`.
 3. Ejecutar una vez `docs/integracion/seed-rutas-sorteos.js` y asignar las rutas `/lottery-service` al grupo de permisos correcto
    desde el panel de administración. Sin esto el gateway responde 403.
+   **Alternativa en SQL (recomendada):** [`registro-rutas-sorteos.sql`](registro-rutas-sorteos.sql) registra la ruta padre y las 12 rutas del
+   servicio y las asigna a los grupos `SORTEOS` y `ADMINISTRADOR` (sin ids fijos, repetible). **Un grupo que vea las pantallas de Sorteos
+   en el menú sin tener estas rutas recibe «Acceso denegado»** y no ve sus sedes: el menú y las rutas del servicio se asignan por separado.
+   Excluye a propósito las 4 rutas de permisos del paso siguiente; ejecútelo **antes** que ese.
 4. **«Permisos por Sedes»:** ejecutar [`registro-rutas-permisos.sql`](registro-rutas-permisos.sql) (completo, p. ej. DBeaver Alt+X). En una sola
    transacción y sin ids fijos: registra las 4 rutas de backend `/api/lottery/permisos/...`, agrega la pantalla `/lotteryperm` al menú dentro
    de la misma sección que `/lotteryreg` («Sorteos») y da permiso sobre las 5 rutas **solo al grupo `ADMINISTRADOR`**. Se puede repetir.
