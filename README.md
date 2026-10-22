@@ -116,7 +116,7 @@ revierte si algo falla a mitad —sin dejar copias a medias en el historial— y
 ## Guía de prueba manual
 
 1. Abrir http://localhost:5173 → **Registrar sorteo**. Elegir fecha, nombre y 2 o más sedes → *Crear sorteo*.
-2. Subir `docs/ejemplos/cupos_ejemplo.csv` (16 cupos, suman 26; en una base vacía avisa «16 gerencia(s) nueva(s) creada(s)»)
+2. Subir `docs/ejemplos/cupos_ejemplo.csv` (16 cupos, suman 26; las gerencias del archivo se crean solas)
    y `docs/ejemplos/participantes_ejemplo.csv` (61 participantes, 0 errores; 6 con `NO`; ya no hay gerencias nuevas).
    Probar también un CSV con una gerencia inventada: se crea, el aviso la lista, y como no tiene cupo sus participantes no ganan;
    una fila sin gerencia aparece en «filas con error» sin impedir cargar el resto.
